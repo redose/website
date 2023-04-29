@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type { ReactNode, FC } from 'react';
-import styled from 'styled-components';
 import { Navbar, Container } from 'react-bootstrap';
 import NavItem from './nav-item';
 
