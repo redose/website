@@ -12,18 +12,18 @@ import FormControls from '../../form-controls';
 
 interface Props {
   children?: ReactNode;
-  initialValue?: string;
-  lastUpdatedAt?: Date;
-  onUpdate(notes?: string): void;
+  initialNotesValue?: string;
+  initialLastUpdatedAt?: Date;
 }
 
 const NoteForm: FC<Props> = function NoteForm({
   children,
-  initialValue,
-  lastUpdatedAt,
-  onUpdate,
+  initialNotesValue,
+  initialLastUpdatedAt,
 }) {
   const toast = useToast();
+  const [notes, setNotes] = useState(initialNotesValue);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(initialLastUpdatedAt);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -36,7 +36,8 @@ const NoteForm: FC<Props> = function NoteForm({
     })
       .then((res) => res.data.user)
       .then((user) => {
-        onUpdate(user.emergencyNotes);
+        setNotes(user.emergencyNotes);
+        setLastUpdatedAt(new Date(user.emergencyNotesLastUpdatedAt!));
         toast.success('Emergency notes updated.');
         return user;
       })
@@ -58,7 +59,8 @@ const NoteForm: FC<Props> = function NoteForm({
       <Form.Control
         as="textarea"
         name="notes"
-        defaultValue={initialValue}
+        defaultValue={notes}
+        disabled={isSubmitting}
       />
 
       <FormControls disabled={isSubmitting}>

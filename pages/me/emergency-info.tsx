@@ -1,52 +1,62 @@
+import type { EmeregncyInfo, EmergencyInfoContact } from '@redose/types';
 import type { NextPage } from 'next';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Container } from 'react-bootstrap';
+import axios from 'axios';
 import redoseApi from '../../redose-api';
+import { useToast } from '../../components/providers/toast';
+import Loading from '../../components/loading';
 import NoteForm from '../../components/user/emergency-info/note-form';
+import Contacts from '../../components/user/emergency-info/contacts';
 
-interface Props {
-  notes: string;
-  notesLastUpdatedAt: Date;
-}
+const EmergencyInfoPage: NextPage = function EmergencyInfoPage() {
+  const toast = useToast();
+  const [notes, setNotes] = useState<string>();
+  const [notesLastUpdatedAt, setNotesLastUpdatedAt] = useState<Date>();
+  const [contacts, setContacts] = useState<EmergencyInfoContact[]>();
 
-const EmergencyInfoPage: NextPage<Props> = function EmergencyInfoPage({
-  notes: initialNotes,
-  notesLastUpdatedAt: initialNotesLastUpdatedAt,
-}) {
-  const [notes, setNotes] = useState(initialNotes);
-  const [notesLastUpdatedAt, setNotesLastUpdatedAt] = useState(initialNotesLastUpdatedAt);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    redoseApi.get<{ emergencyInfo: EmeregncyInfo }>('/user/me/emergency-info', {
+      signal: ctrl.signal,
+    })
+      .then((res) => res.data.emergencyInfo)
+      .then((info) => {
+        setNotes(info.notes);
+        setNotesLastUpdatedAt(info.notesLastUpdatedAt && new Date(info.notesLastUpdatedAt));
+        setContacts(info.contacts.map((contact) => ({
+          ...contact,
+          createdAt: new Date(contact.createdAt),
+        })));
+      })
+      .catch((ex) => {
+        if (!axios.isCancel(ex)) toast.error(ex.message);
+      });
 
-  function handleNoteUpdate(newNotes: string) {
-    setNotes(newNotes);
-    setNotesLastUpdatedAt(new Date());
-  }
+    return () => {
+      ctrl.abort();
+    };
+  }, []);
 
   return (
     <Container>
       <h1>My Emergency Contacts</h1>
+      {!contacts ? (
+        <Loading fixed />
+      ) : (
+        <>
+          <h2>Notes</h2>
+          <p>
+            TODO: Write what sorts of things we expect to put in here etc&hellip;
+          </p>
+          <NoteForm initialNotesValue={notes} initialLastUpdatedAt={notesLastUpdatedAt} />
 
-      <h2>Notes</h2>
-      <p>
-        TODO: Write what sorts of things we expect to put in here etc&hellip;
-      </p>
-      <NoteForm
-        initialValue={notes}
-        lastUpdatedAt={notesLastUpdatedAt}
-        onUpdate={handleNoteUpdate}
-      />
-
-      <h2>Contacts</h2>
-      <Contacts />
+          <h2>Contacts</h2>
+          <Contacts initialContacts={contacts} />
+        </>
+      )}
     </Container>
   );
 };
-
-EmergencyInfoPage.getInitialProps = async () => redoseApi
-  .get<{ emergencyInfo: Props }>('/user/me/emergency-info')
-  .then((res) => res.data.emergencyInfo)
-  .then((info) => ({
-    ...info,
-    notesLastUpdatedAt: info.notesLastUpdatedAt && new Date(info.notesLastUpdatedAt),
-  }));
 
 export default EmergencyInfoPage;
