@@ -1,72 +1,73 @@
 import type { User } from '@redose/types';
-import {
-  useState,
-  FormEvent,
-  ReactNode,
-  FC,
-} from 'react';
-import { Form } from 'react-bootstrap';
+import type { ReactNode, FC } from 'react';
+import { Formik, Form as FormikForm } from 'formik';
+import * as Yup from 'yup';
 import redoseApi from '../../../redose-api';
 import { useToast } from '../../providers/toast';
 import FormControls from '../../form-controls';
+import Timestamp from '../../timestamp';
+import { TextField } from '../../fields';
 
-interface Props {
-  children?: ReactNode;
-  initialNotesValue?: string;
-  initialLastUpdatedAt?: Date;
+interface FormValues {
+  notes: string;
 }
+
+interface Props extends Partial<FormValues> {
+  children?: ReactNode;
+  lastUpdatedAt?: Date;
+  onSuccess(updatedUser: User): Promise<void>;
+}
+
+const validationSchema = Yup.object().shape({
+  notes: Yup.string().trim().min(2),
+})
+  .required();
 
 const NoteForm: FC<Props> = function NoteForm({
   children,
-  initialNotesValue,
-  initialLastUpdatedAt,
+  notes,
+  lastUpdatedAt,
+  onSuccess,
 }) {
   const toast = useToast();
-  const [notes, setNotes] = useState(initialNotesValue);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(initialLastUpdatedAt);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.target as HTMLFormElement);
-    setIsSubmitting(true);
-
-    return redoseApi.patch<{ user: User }>('/user/me', {
-      emergencyNotes: fd.get('notes')!.toString().trim() || null,
-    })
-      .then((res) => res.data.user)
-      .then((user) => {
-        setNotes(user.emergencyNotes);
-        setLastUpdatedAt(new Date(user.emergencyNotesLastUpdatedAt!));
+  async function submit(values: FormValues) {
+    return redoseApi.patch<User>('/user/me/emergency-info', values)
+      .then((res) => {
         toast.success('Emergency notes updated.');
-        return user;
+        return onSuccess(res.data);
       })
       .catch((ex) => {
         console.error(ex);
         toast.error('Emergency notes failed to update.');
-      })
-      .finally(() => {
-        setIsSubmitting(false);
       });
   }
 
   return (
-    <form method="patch" action="/api/user" onSubmit={handleSubmit}>
-      {lastUpdatedAt && (
-        <p>{lastUpdatedAt.toLocaleString()}</p>
+    <Formik<FormValues>
+      initialValues={{ notes: notes || '' }}
+      validationSchema={validationSchema}
+      onSubmit={submit}
+    >
+      {({ isSubmitting }) => (
+        <FormikForm>
+          {lastUpdatedAt && (
+            <Timestamp date={lastUpdatedAt} label="Updated at" />
+          )}
+
+          <TextField
+            name="notes"
+            label="Notes"
+            type="textarea"
+            disabled={isSubmitting}
+          />
+
+          <FormControls disabled={isSubmitting}>
+            {children}
+          </FormControls>
+        </FormikForm>
       )}
-
-      <Form.Control
-        as="textarea"
-        name="notes"
-        defaultValue={notes}
-        disabled={isSubmitting}
-      />
-
-      <FormControls disabled={isSubmitting}>
-        {children}
-      </FormControls>
-    </form>
+    </Formik>
   );
 };
 

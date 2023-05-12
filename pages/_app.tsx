@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import type { FC } from 'react';
 import { ThemeProvider, DefaultTheme } from 'styled-components';
 import ToastProvider from '../components/providers/toast';
+import RedoseApiInterceptors from '../components/redose-api-interceptors';
 import PageLayout from '../components/page-layout';
 
 const theme: DefaultTheme = {
@@ -19,6 +20,7 @@ const MyApp: FC<AppProps> = function App({
   return (
     <ThemeProvider theme={theme}>
       <ToastProvider>
+        <RedoseApiInterceptors />
         <PageLayout>
           <Component {...pageProps} />
         </PageLayout>

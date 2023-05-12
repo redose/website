@@ -18,7 +18,7 @@ interface Props extends FormValues {
   id: string;
 }
 
-const EmergencyContactsTableRowForm: FC<FormValues> = function EmergencyContact({ id, ...props }) {
+const EmergencyContactsTableRowForm: FC<Props> = function EmergencyContact({ id, ...props }) {
   async function submit(values: FormValues) {
 
   }

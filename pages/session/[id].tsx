@@ -13,7 +13,7 @@ const SessionPage: FC = function SessionPage() {
     if (!sessionId) return () => {};
 
     const ctrl = new AbortController();
-    redoseApi.post(`/session/${sessionId}`, {
+    redoseApi.post(`/user/session/${sessionId}`, {
       signal: ctrl.signal,
     })
       .then(() => {
