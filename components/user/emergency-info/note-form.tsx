@@ -1,21 +1,20 @@
-import type { User } from '@redose/types';
+import type { EmergencyContactPolicy } from '@redose/types';
 import type { ReactNode, FC } from 'react';
 import { Formik, Form as FormikForm } from 'formik';
 import * as Yup from 'yup';
-import redoseApi from '../../../redose-api';
-import { useToast } from '../../providers/toast';
 import FormControls from '../../form-controls';
 import Timestamp from '../../timestamp';
 import { TextField } from '../../fields';
 
-interface FormValues {
+export interface FormValues {
   notes: string;
+  contactPolicy: EmergencyContactPolicy | null;
 }
 
 interface Props extends Partial<FormValues> {
   children?: ReactNode;
   lastUpdatedAt?: Date;
-  onSuccess(updatedUser: User): Promise<void>;
+  onSubmit(updatedUser: FormValues): Promise<void>;
 }
 
 const validationSchema = Yup.object().shape({
@@ -26,28 +25,18 @@ const validationSchema = Yup.object().shape({
 const NoteForm: FC<Props> = function NoteForm({
   children,
   notes,
+  contactPolicy,
   lastUpdatedAt,
-  onSuccess,
+  onSubmit,
 }) {
-  const toast = useToast();
-
-  async function submit(values: FormValues) {
-    return redoseApi.patch<User>('/user/me/emergency-info', values)
-      .then((res) => {
-        toast.success('Emergency notes updated.');
-        return onSuccess(res.data);
-      })
-      .catch((ex) => {
-        console.error(ex);
-        toast.error('Emergency notes failed to update.');
-      });
-  }
-
   return (
     <Formik<FormValues>
-      initialValues={{ notes: notes || '' }}
+      initialValues={{
+        notes: notes || '',
+        contactPolicy: contactPolicy || null,
+      }}
       validationSchema={validationSchema}
-      onSubmit={submit}
+      onSubmit={onSubmit}
     >
       {({ isSubmitting }) => (
         <FormikForm>

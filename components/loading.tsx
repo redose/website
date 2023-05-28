@@ -4,6 +4,15 @@ import type { IconBaseProps } from 'react-icons';
 import { FaSpinner } from 'react-icons/fa';
 
 const FixedWrapper = styled.div`
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,23 +22,17 @@ const FixedWrapper = styled.div`
   bottom: 0;
   left: 0;
   background-color: rgba(0, 0, 0, 0.35);
-`;
 
-const Spinner = styled(FaSpinner)`
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+  svg {
+    width: 50%;
+    height: 50%;
+    animation: spin 1.5s infinite linear;
   }
-  animation: rotate 1.5s infinite linear;
 `;
 
 interface Props extends IconBaseProps {
   className?: string;
-  fixed: boolean;
+  fixed?: boolean;
 }
 
 const Loading: FC<Props> = function Loading({
@@ -39,10 +42,10 @@ const Loading: FC<Props> = function Loading({
 }) {
   return fixed ? (
     <FixedWrapper className={className}>
-      <Spinner {...props} />
+      <FaSpinner {...props} />
     </FixedWrapper>
   ) : (
-    <Spinner {...props} className={className} />
+    <FaSpinner {...props} className={className} />
   );
 };
 
