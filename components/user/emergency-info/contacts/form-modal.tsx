@@ -6,12 +6,12 @@ import { TextField } from '../../../fields';
 import Footer from '../../../form-modal-footer';
 
 export interface FormValues {
-  discordId: string | null;
+  contactId: string | null;
   email?: string;
 }
 
 const validationSchema = Yup.object().shape({
-  discordId: Yup.string().nullable(),
+  contactId: Yup.string().nullable(),
   email: Yup.string().trim(),
 })
   .required();
@@ -24,38 +24,44 @@ interface Props extends Partial<FormValues> {
 
 const EmergencyContactsFormModal: FC<Props> = function EmergencyContactsFormModal({
   contactId,
-  discordId,
   email,
   close,
   onSubmit,
 }) {
+  async function handleSubmit(values: FormValues) {
+    await onSubmit(values, contactId);
+    close();
+  }
+
   return (
     <Modal show onHide={() => close()}>
       <Modal.Header closeButton>
         <Modal.Title>{contactId ? 'Edit' : 'Create'} Emergency Contact</Modal.Title>
       </Modal.Header>
+
       <Formik<FormValues>
         initialValues={{
-          discordId: discordId || null,
+          contactId: contactId || null,
           email: email || '',
         }}
         validationSchema={validationSchema}
         onReset={close}
-        onSubmit={(values) => onSubmit(values, contactId)}
+        onSubmit={handleSubmit}
       >
         {({ isSubmitting }) => (
           <Form>
             <Modal.Body>
               <Row>
-                <Col xs={12} md={6}>
-                  <TextField name="discordId" label="Discord ID" disabled={isSubmitting} />
+                <Col xs={12}>
+                  <TextField name="contactId" label="Discord ID" disabled={isSubmitting} />
                 </Col>
 
-                <Col xs={12} md={6}>
+                <Col xs={12}>
                   <TextField name="email" label="Email" disabled={isSubmitting} />
                 </Col>
               </Row>
             </Modal.Body>
+
             <Footer disabled={isSubmitting} />
           </Form>
         )}

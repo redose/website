@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { useField } from 'formik';
 import { Form, FormControlProps } from 'react-bootstrap';
+import Label from './label';
 
 interface Props extends FormControlProps {
   name: string;
@@ -20,7 +21,7 @@ const TextField: FC<Props> = function TextField({
   return (
     <Form.Group className={className}>
       {label && (
-        <Form.Label>{label}</Form.Label>
+        <Label>{label}</Label>
       )}
 
       <Form.Control
