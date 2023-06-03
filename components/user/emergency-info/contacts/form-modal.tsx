@@ -29,7 +29,10 @@ const EmergencyContactsFormModal: FC<Props> = function EmergencyContactsFormModa
   onSubmit,
 }) {
   async function handleSubmit(values: FormValues) {
-    await onSubmit(values, contactId);
+    await onSubmit({
+      ...values,
+      email: values.email || undefined,
+    }, contactId);
     close();
   }
 

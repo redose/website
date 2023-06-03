@@ -2,8 +2,8 @@ import type { EmergencyContact } from '@redose/types';
 import { useState, FC } from 'react';
 import styled from 'styled-components';
 import { Table, Button } from 'react-bootstrap';
-import { FaEdit } from 'react-icons/fa';
-import { AddButton, EditButton, DeleteButton } from '../../../buttons';
+import { EditButton, DeleteButton } from '../../../buttons';
+import DiscordUser from '../../discord-user';
 import EmergencyContactsFormModal from './form-modal';
 
 const PostTableControls = styled.div`
@@ -16,12 +16,28 @@ const StyledTable = styled(Table)`
   td:empty {
     content: '-';
     font-weight: bold;
+    font-style: italic;
   }
 `;
 
+const ControlsCell = styled.td`
+  > button:not(:last-of-type) {
+    margin-right: .5em;
+  }
+`;
+
+interface CreateContactArgs {
+  contactId?: string;
+  email?: string;
+}
+
+interface UpdateContactArgs extends CreateContactArgs {
+  id: string;
+}
+
 interface Props {
   contacts: EmergencyContact[];
-  createContact(contact: Pick<EmergencyContact, 'contactId' | 'email'>): Promise<void>;
+  createContact(contact: CreateContactArgs): Promise<void>;
   updateContact(contact: EmergencyContact): Promise<void>;
   deleteContact(contactId: string): Promise<void>;
 }
@@ -32,7 +48,7 @@ const EmergencyContacts: FC<Props> = function EmergencyContacts({
   updateContact,
   deleteContact,
 }) {
-  const [editingContact, setEditingContact] = useState<boolean | EmergencyContact>(false);
+  const [editingContact, setEditingContact] = useState<boolean | UpdateContactArgs>(false);
   const isCreating = editingContact === true;
 
   return (
@@ -40,7 +56,7 @@ const EmergencyContacts: FC<Props> = function EmergencyContacts({
       <StyledTable striped bordered>
         <thead>
           <tr>
-            <th>Discord ID</th>
+            <th>Discord</th>
             <th>Email</th>
             <th aria-label="Controls" />
           </tr>
@@ -52,14 +68,24 @@ const EmergencyContacts: FC<Props> = function EmergencyContacts({
                 Unable to fetch emergency contacts.
               </td>
             </tr>
-          ) : contacts.map((contact) => (
-            <tr key={contact.id}>
-              <td>{contact.userId}</td>
-              <td>{contact.email}</td>
+          ) : contacts.map(({ id, email, contact }) => (
+            <tr key={id}>
               <td>
-                <EditButton onClick={() => setEditingContact(contact)} />
-                <DeleteButton onClick={() => deleteContact(contact.id)} />
+                {!contact ? null : (
+                  <DiscordUser {...contact} />
+                )}
               </td>
+              <td>{email}</td>
+              <ControlsCell>
+                <EditButton
+                  onClick={() => setEditingContact({
+                    id,
+                    email,
+                    contactId: contact?.id,
+                  })}
+                />
+                <DeleteButton onClick={() => deleteContact(id)} />
+              </ControlsCell>
             </tr>
           ))}
         </tbody>

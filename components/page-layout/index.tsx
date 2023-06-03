@@ -3,6 +3,7 @@ import type { ReactNode, FC } from 'react';
 import { Navbar, Container } from 'react-bootstrap';
 import styled from 'styled-components';
 import NavItem from './nav-item';
+import Notifications from './notifications';
 
 const Nav = styled.nav`
   display: flex;
