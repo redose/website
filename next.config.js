@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('node:path');
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 /** @type {import('next').NextConfig} */
@@ -7,8 +9,11 @@ const nextConfig = {
   reactStrictMode: true,
   compress: isProduction,
   swcMinify: isProduction,
-  compiler: {
-    styledComponents: true,
+
+  sassOptions: {
+    includePaths: [
+      path.join(__dirname, 'styles'),
+    ],
   },
 
   rewrites() {

@@ -1,12 +1,5 @@
-import type { ReactNode, FC } from 'react';
-import styled from 'styled-components';
-
-const Label = styled.span`
-  font-weight: bold;
-  &::after {
-    content: ':';
-  }
-`;
+import type { FC } from 'react';
+import styles from './timestamp.module.scss';
 
 interface Props {
   className?: string;
@@ -21,7 +14,7 @@ const Timestamp: FC<Props> = function Timestamp({
 }) {
   return (
     <p className={className}>
-      <Label>{label}</Label>
+      <span className={styles.label}>{label}</span>
       &nbsp;
       {date.toLocaleString()}
     </p>
