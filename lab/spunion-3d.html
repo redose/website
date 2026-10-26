@@ -1,0 +1,1546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Spunion 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Spunion 3D: a proof that he can live in 3D without losing his cartoon face. Same springs as the Lab. */
+:root {
+	--bg: #1b1540;
+	--bg2: #2a2059;
+	--panel: rgba(255,255,255,.06);
+	--line: rgba(255,255,255,.14);
+	--text: #fff;
+	--soft: rgba(255,255,255,.78);
+	--faint: rgba(255,255,255,.5);
+	--cyan: #8ff4f7;
+	--sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+	--serif: "Iowan Old Style", Charter, Georgia, serif;
+	color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+.app { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); min-height: 100%; }
+.stage { position: sticky; top: 0; height: 100vh; overflow: hidden; touch-action: none; cursor: grab; }
+.stage:active { cursor: grabbing; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.panel { padding-block: 24px 48px; padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: 16px; display: grid; gap: 22px; align-content: start; border-left: 1px solid var(--line); background: rgba(0,0,0,.18); min-width: 0; }
+@media (max-width: 860px) { .app { grid-template-columns: minmax(0, 1fr); } .stage { position: relative; height: 68vh; } .panel { border-left: 0; border-top: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); } }
+h1 { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 28px; }
+.sub { margin: 4px 0 0; color: var(--faint); font-size: 14px; line-height: 1.5; }
+h2 { margin: 0 0 10px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); font-weight: 650; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btns button { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 7px 12px; font: 500 13px var(--sans); cursor: pointer; transition: background .15s, border-color .15s, transform .15s; }
+.btns button:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); }
+.btns button:active { transform: scale(.96); }
+.btns button[aria-pressed="true"] { background: #fff; color: #2a2059; border-color: #fff; }
+.btns button.hero { border-color: var(--cyan); }
+button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.caption { position: absolute; top: 7%; left: 50%; transform: translateX(-50%); width: min(560px, 86%); text-align: center; font-family: var(--serif); font-size: clamp(20px, 2.6vw, 30px); line-height: 1.25; margin: 0; pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+.caption .w { opacity: 0; transition: opacity .25s; }
+.caption .w.on { opacity: 1; }
+.hint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--faint); pointer-events: none; white-space: nowrap; }
+.note { font-size: 13px; color: var(--faint); line-height: 1.5; margin: 0; }
+.bench { display: grid; gap: 8px; margin-top: 10px; }
+.brow { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; color: var(--soft); }
+.brow input { width: 100%; accent-color: var(--cyan); }
+:root:has(body.embed) { color-scheme: normal; background: transparent; }
+body.embed { background: transparent; overflow: hidden; }
+body.embed .app { display: block; }
+body.embed .panel, body.embed .caption, body.embed .hint { display: none; }
+body.embed .stage { position: fixed; inset: 0; height: 100%; cursor: pointer; }
+.err { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; color: var(--soft); }
+</style>
+
+<div class="app">
+	<section class="stage" id="stage" aria-label="Spunion in 3D">
+		<p class="caption" id="caption" aria-live="polite"></p>
+		<p class="hint">Drag to turn him · click to boop</p>
+		<div class="err" id="err">This needs WebGL, which this browser has turned off.</div>
+	</section>
+	<aside class="panel">
+		<div>
+			<h1>Spunion 3D</h1>
+			<p class="sub">A test of whether he works as a 3D character. Same springs and feelings as the Lab; his body is real geometry, his face stays drawn by hand.</p>
+		</div>
+		<div>
+			<h2>Variant</h2>
+			<div class="btns" id="seasons" style="margin-bottom:16px"></div>
+			<h2>Look</h2>
+			<div class="btns" id="looks"></div>
+		</div>
+		<div>
+			<h2>Moves</h2>
+			<div class="btns" id="acts"></div>
+		</div>
+		<div>
+			<h2>Feelings</h2>
+			<div class="btns" id="feels"></div>
+		</div>
+		<div>
+			<h2>Effects</h2>
+			<div class="btns" id="fxs"></div>
+			<div class="bench" id="bench"></div>
+		</div>
+		<div>
+			<h2>Animation sets</h2>
+			<div class="btns" id="sets" style="margin-bottom:16px"></div>
+			<h2>Gives off</h2>
+			<div class="btns" id="exudes"></div>
+		</div>
+		<div>
+			<h2>Props</h2>
+			<div class="btns" id="props"></div>
+		</div>
+		<div>
+			<h2>Hat fit (witch)</h2>
+			<div class="bench" id="hatfit"></div>
+			<p class="note" id="hatvals" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace"></p>
+			<button id="hatreset" style="margin-top:6px">Reset</button>
+		</div>
+		<p class="note">Proof of concept for the Lab's next version. The effects stack, substances and catalog move over once the look is settled.</p>
+	</aside>
+</div>
+
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/", "delaunator": "https://cdn.jsdelivr.net/npm/delaunator@5.0.1/index.js", "robust-predicates": "https://cdn.jsdelivr.net/npm/robust-predicates@3.0.2/index.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import Delaunator from 'delaunator';
+
+const $ = (s) => document.querySelector(s);
+const HAT_DEFAULT = { lift: .26, x: 248, y: 62, lean: 0, tilt: -.06, scale: 1.12 };
+const hatFit = (() => { try { return { ...HAT_DEFAULT, ...JSON.parse(localStorage.getItem('rd-hat-witch') || '{}') }; } catch { return { ...HAT_DEFAULT }; } })();
+// Embedded on redose.org (?embed): just him, see-through, no panel; the page tells him how to feel and move.
+const EMBED = new URLSearchParams(location.search).has('embed');
+let jitter = 0; // 0–1, set by the page for stimulants
+let camK = 1;
+let lineArt = false; // drawn as plain line art (effect demos): colour cues are ignored
+let flatZ = .55; // embedded depth (flatter, like the drawing); full depth when he's wearing a seasonal hat or prop, so it fits
+let radioOn = false;
+let waterPush = false; // the water show is on
+let waterShow = 0; // 0–1: how far the bottle has taken centre stage (he shrinks aside as it does)
+const waterGlow = (() => {
+	const c = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = c.getContext('2d');
+	const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+	r.addColorStop(0, 'rgba(190,250,255,.95)'); r.addColorStop(.35, 'rgba(92,223,228,.55)'); r.addColorStop(.7, 'rgba(120,140,255,.18)'); r.addColorStop(1, 'rgba(120,140,255,0)');
+	g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+	const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+	return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
+})();
+let disOn = false; // dissociative effects on (tracers, frame drops)
+// A full-screen quad that scales whatever is already drawn by .82: each frame, the last one fades a little.
+const fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), fadeScene = new THREE.Scene();
+fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .82, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.SrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.SrcAlphaFactor })));
+let beat = 0; // 0–1, the music's loudness right now, passed in by the page // camera distance multiplier (embedded: further back, with a longer lens)
+if (EMBED) document.body.classList.add('embed');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const stage = $('#stage');
+
+// ── Renderer, camera, background ──
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: EMBED, preserveDrawingBuffer: EMBED }); if (EMBED) renderer.setClearColor(0x000000, 0); } catch (e) { $('#err').style.display = 'grid'; throw e; }
+renderer.setPixelRatio(Math.min(EMBED ? 1.25 : 2, devicePixelRatio)); // embedded: lighter, he's small on the page
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const bgCanvas = Object.assign(document.createElement('canvas'), { width: 512, height: 512 });
+const drawBg = (a, b) => {
+	const g = bgCanvas.getContext('2d'), gr = g.createRadialGradient(180, 140, 0, 256, 256, 420);
+	gr.addColorStop(0, a); gr.addColorStop(.75, b); g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+};
+drawBg('#2a2059', '#1b1540');
+const bgTex = new THREE.CanvasTexture(bgCanvas);
+bgTex.colorSpace = THREE.SRGBColorSpace;
+const camera = new THREE.PerspectiveCamera(30, 1, .1, 60);
+camera.position.set(0, .55, 8.2);
+camera.lookAt(0, .15, 0);
+camera.focus = 22; // where the 3D glasses converge; he sits well in front of it, so he pops out of the screen
+// ── The DMT "chrysanthemum": interfering waves folded into sixfold symmetry. Used on his skin and on the room. ──
+const PAT_FN = `
+vec3 dmtPattern(vec3 p, float t) {
+	vec2 q = p.xy * 13.0 + vec2(p.z * 3.0, 0.0) - vec2(0.0, 13.0);
+	float a = atan(q.y, q.x), r = length(q), w = 6.28318 / 6.0;
+	a = mod(a + t * 0.06, w); a = abs(a - w * 0.5); // fold into sixfold mirror symmetry
+	q = r * vec2(cos(a), sin(a));
+	float f = 0.0, g = 0.0;
+	for (int i = 0; i < 3; i++) {
+		float th = float(i) * 2.0944;
+		f += cos(dot(q, vec2(cos(th + t * 0.05), sin(th + t * 0.05))) * 1.6 + t * 0.9);
+		g += cos(dot(q, vec2(cos(th - t * 0.04 + 0.4), sin(th - t * 0.04 + 0.4))) * 2.7 - t * 0.7);
+	}
+	float v = f * g * 0.22 + r * 0.04;
+	vec3 col = 0.62 + 0.36 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + v * 0.18 + t * 0.03));
+	col *= 0.55 + 0.45 * smoothstep(0.2, 0.9, abs(sin(v * 3.1416)));
+	// crisp contour lines, antialiased by measuring how fast v changes per pixel
+	float c = abs(fract(v * 1.5) - 0.5), lw = fwidth(v * 1.5) * 1.2;
+	col = mix(col, vec3(1.0), (1.0 - smoothstep(0.0, lw, 0.5 - c)) * 0.75);
+	return pow(col, vec3(2.2));
+}`;
+const PAT = { uPat: { value: 0 }, uTime: { value: 0 }, uReveal: { value: 0 } };
+// Splice the pattern into any built-in material: it spreads outward from his middle as uReveal grows, and glows a little.
+const addPattern = (m) => {
+	m.onBeforeCompile = (sh) => {
+		Object.assign(sh.uniforms, PAT);
+		sh.vertexShader = 'varying vec3 vPat;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvPat = position;');
+		sh.fragmentShader = 'uniform float uPat, uTime, uReveal; varying vec3 vPat;\n' + PAT_FN + '\n' + sh.fragmentShader
+			.replace('#include <color_fragment>', '#include <color_fragment>\nfloat patK = uPat * smoothstep(uReveal, uReveal - 0.35, length(vPat - vec3(0.0, 0.9, 0.6)));\nvec3 patC = dmtPattern(vPat, uTime);\ndiffuseColor.rgb = mix(diffuseColor.rgb, patC, patK);')
+			.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += patC * patK * 0.5;');
+	};
+	m.customProgramCacheKey = () => 'dmt-pattern';
+	return m;
+};
+// The room: his usual gradient, which can fill with the pattern, then open into hyperbolic space:
+// a {7,3} tiling of the Poincaré disk (heptagons, three at every corner, shrinking forever toward the rim),
+// with a tiny Spunion in every tile, the whole thing flowing as if you're moving through it.
+const stampCanvas = Object.assign(document.createElement('canvas'), { width: 256, height: 256 });
+const stampTex = new THREE.CanvasTexture(stampCanvas); stampTex.colorSpace = THREE.SRGBColorSpace;
+const roomMat = new THREE.ShaderMaterial({
+	uniforms: { map: { value: bgTex }, stamp: { value: stampTex }, uRoom: { value: 0 }, uHyper: { value: 0 }, uTime: { value: 0 } },
+	depthWrite: false,
+	vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+	fragmentShader: `uniform sampler2D map, stamp; uniform float uRoom, uHyper, uTime; varying vec2 vUv;
+${PAT_FN}
+vec2 cmul(vec2 a, vec2 b) { return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
+vec2 cdiv(vec2 a, vec2 b) { return vec2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / dot(b, b); }
+vec2 rot(vec2 p, float a) { float c = cos(a), s = sin(a); return vec2(c * p.x - s * p.y, s * p.x + c * p.y); }
+void main() {
+	vec3 col = texture2D(map, vUv).rgb;
+	vec2 p = (vUv - 0.5) * vec2(80.0, 50.0) / 6.2;
+	if (uRoom > 0.001) col = mix(col, dmtPattern(vec3(p * 0.9, 0.0), uTime * 0.7) * 0.32, uRoom * 0.7);
+	if (uHyper > 0.001) {
+		float r = length(p);
+		vec3 h;
+		if (r < 1.0) {
+			vec2 w = 0.6 * vec2(cos(uTime * 0.21), sin(uTime * 0.17));
+			vec2 z = rot(cdiv(p - w, vec2(1.0, 0.0) - cmul(vec2(w.x, -w.y), p)), uTime * 0.12); // a Möbius move: travel through the space
+			const float A = 3.14159265 / 7.0, D = 2.0129, R = 1.7471; // fundamental triangle for {7,3}
+			float flips = 0.0, turns = 0.0;
+			for (int i = 0; i < 40; i++) {
+				float k = floor((atan(z.y, z.x) + A) / (2.0 * A));
+				z = rot(z, -k * 2.0 * A); turns += k;
+				vec2 zc = z - vec2(D, 0.0); float l2 = dot(zc, zc);
+				if (l2 < R * R) { z = vec2(D, 0.0) + R * R * zc / l2; flips += 1.0; } else break;
+			}
+			vec3 tc = 0.5 + 0.45 * cos(6.2832 * (vec3(0.0, 0.33, 0.67) + mod(flips * 0.17 + turns * 0.07, 1.0) + uTime * 0.03));
+			tc = pow(tc * (0.55 + 0.45 * smoothstep(0.27, 0.0, length(z))), vec3(2.2));
+			vec2 suv = z / 0.25 * 0.5 + 0.5;
+			vec4 st = texture2D(stamp, clamp(suv, 0.0, 1.0));
+			tc = mix(tc, st.rgb, st.a * step(abs(suv.x - 0.5), 0.5) * step(abs(suv.y - 0.5), 0.5));
+			float edge = abs(length(z - vec2(D, 0.0)) - R), aa = (1.0 - r * r) * 0.02 + 0.002;
+			tc = mix(tc, vec3(1.0), smoothstep(aa * 2.0, 0.0, edge) * 0.7);
+			h = tc * smoothstep(1.0, 0.96, r);
+		} else h = pow(vec3(0.03, 0.0, 0.08) + vec3(0.4, 0.2, 0.9) * exp(-(r - 1.0) * 12.0) * 0.6, vec3(2.2));
+		col = mix(col, h, uHyper);
+	}
+	gl_FragColor = vec4(col, 1.0);
+}`,
+});
+// The backdrop is a big plane behind him rather than scene.background, so the jelly/onion lighting doesn't recolour the page.
+const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), roomMat);
+backdrop.position.set(0, 0, -16); backdrop.lookAt(camera.position); scene.add(backdrop);
+const envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(-3, 4, 5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9f8cff, 1.2); rim.position.set(4, 2, -3); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xdff9ff, 0x3a2a70, 1.1));
+
+// 3D glasses as a step in the same chain as the tracers, so they stack: draw the scene from a left and a right
+// eye, merge them into red/cyan (Dubois's colour matrices, as three.js uses), then the trail step runs on the result.
+class AnaglyphPass extends Pass {
+	constructor(scene, camera) {
+		super();
+		this.scene = scene; this.camera = camera; this.enabled = false;
+		this.stereo = new THREE.StereoCamera(); this.stereo.eyeSep = .1;
+		this.rtL = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+		this.rtR = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+		this.quad = new FullScreenQuad(new THREE.ShaderMaterial({
+			uniforms: { mapL: { value: this.rtL.texture }, mapR: { value: this.rtR.texture },
+				mL: { value: new THREE.Matrix3().fromArray([.4561, -.0400822, -.0152161, .500484, -.0378246, -.0205971, .176381, -.0157589, -.00546856]) },
+				mR: { value: new THREE.Matrix3().fromArray([-.0434706, .378476, -.0721527, -.0879388, .73364, -.112961, -.00155529, -.0184503, 1.2264]) } },
+			vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+			fragmentShader: 'uniform sampler2D mapL, mapR; uniform mat3 mL, mR; varying vec2 vUv; void main() { gl_FragColor = vec4(clamp(mL * texture2D(mapL, vUv).rgb + mR * texture2D(mapR, vUv).rgb, 0.0, 1.0), 1.0); }',
+		}));
+	}
+	setSize(w, h) { this.rtL.setSize(w, h); this.rtR.setSize(w, h); }
+	render(renderer, writeBuffer) {
+		this.camera.updateMatrixWorld();
+		this.stereo.update(this.camera);
+		for (const [rt, cam] of [[this.rtL, this.stereo.cameraL], [this.rtR, this.stereo.cameraR]]) { renderer.setRenderTarget(rt); renderer.clear(); renderer.render(this.scene, cam); }
+		renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+		this.quad.render(renderer);
+	}
+}
+// Multisampled (4×) buffers: the renderer's own antialiasing only applies when drawing straight to the screen.
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+const renderPass = new RenderPass(scene, camera);
+const anaglyphPass = new AnaglyphPass(scene, camera);
+const after = new AfterimagePass(0);
+// Tracers that smear everything, dark parts too: blend each new frame with the remembered one
+// (three's default keeps whichever pixel is brighter, which wipes out his black eyes).
+after.compFsMaterial.fragmentShader = 'uniform float damp; uniform sampler2D tOld, tNew; varying vec2 vUv; void main() { gl_FragColor = mix(texture2D(tNew, vUv), texture2D(tOld, vUv), damp * 0.82); }';
+after.compFsMaterial.needsUpdate = true;
+composer.addPass(renderPass);
+composer.addPass(anaglyphPass);
+composer.addPass(after);
+composer.addPass(new OutputPass());
+
+// ── Cartoon ink: the "inverted hull" trick. Each object is drawn a second time, pushed outward a fixed number of
+// screen pixels along its surface direction, in ink, showing only its back faces; what peeks out is the outline. ──
+const INK = { px: { value: 2.6 }, res: { value: new THREE.Vector2(1, 1) }, color: { value: new THREE.Color('#1b1030') } };
+const inkMat = new THREE.ShaderMaterial({
+	uniforms: INK, side: THREE.BackSide,
+	vertexShader: `uniform float px; uniform vec2 res;
+	void main() {
+		vec3 p = position, n = normal;
+		#ifdef USE_INSTANCING
+			p = (instanceMatrix * vec4(p, 1.0)).xyz; n = mat3(instanceMatrix) * n;
+		#endif
+		vec4 c = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+		vec2 d = (projectionMatrix * vec4(normalize(normalMatrix * n), 0.0)).xy;
+		c.xy += normalize(d + 1e-6) * px / res * 2.0 * c.w;
+		gl_Position = c;
+	}`,
+	fragmentShader: 'uniform vec3 color; void main() { gl_FragColor = vec4(color, 1.0); }',
+});
+const inks = [];
+const addInk = (mesh) => { const h = mesh.isInstancedMesh ? new THREE.InstancedMesh(mesh.geometry, inkMat, mesh.count) : new THREE.Mesh(mesh.geometry, inkMat); if (mesh.isInstancedMesh) h.instanceMatrix = mesh.instanceMatrix; h.frustumCulled = false; h.raycast = () => {}; mesh.add(h); inks.push(h); return h; };
+const resize = () => {
+	const w = stage.clientWidth, h = stage.clientHeight;
+	renderer.setSize(w, h, false);
+	composer.setSize(w, h);
+	camera.aspect = w / h;
+	// Keep him the same size on narrow screens
+	const fov = EMBED ? 15 : 30; // embedded: a long lens, so he reads flat like the 2D drawing
+	camera.fov = w / h < 1 ? fov / Math.max(.62, w / h) : fov;
+	camera.updateProjectionMatrix();
+	renderer.getDrawingBufferSize(INK.res.value);
+	INK.px.value = 3.2 * renderer.getPixelRatio(); // same visible line weight on retina screens
+};
+new ResizeObserver(resize).observe(stage);
+
+// ── His body, built from his real 2D outline so he's on-model from the front ──
+// Steps: outline → evenly spaced edge points → fill the inside with points → triangulate → "inflate":
+// every inside point is the centre of the biggest circle that fits there; turn each circle into a ball and
+// the surface is the outer skin of all those balls. Wide bulb → thick and round; thin hooked tip → thin and round.
+const OUTLINE = 'M70 190 C110 112 196 62 288 32 C316 23 330 46 302 57 C284 64 268 70 271 78 C275 87 302 82 332 96 C424 138 472 222 466 312 C460 412 380 472 263 471 C138 470 38 400 38 300 C38 256 50 222 70 190 Z';
+const K = .0048;          // design units → world units (he's ~2.1 world units tall)
+const DEPTH = .86;        // how plump he is front-to-back (1 = fully round)
+const FULL = .72;         // < 1 flattens the middle of his front and rounds the edges harder: calmer face area, less nozzle-like tip
+const edge = (() => {
+	const tok = OUTLINE.match(/[MCZ]|-?\d+(?:\.\d+)?/g), raw = [];
+	let i = 0, cur;
+	while (i < tok.length) {
+		const c = tok[i++];
+		if (c === 'M') { cur = [+tok[i++], +tok[i++]]; raw.push(cur); }
+		else if (c === 'C') {
+			const a = [+tok[i++], +tok[i++]], b = [+tok[i++], +tok[i++]], e = [+tok[i++], +tok[i++]];
+			for (let k = 1; k <= 60; k++) { const t = k / 60, u = 1 - t; raw.push([u * u * u * cur[0] + 3 * u * u * t * a[0] + 3 * u * t * t * b[0] + t * t * t * e[0], u * u * u * cur[1] + 3 * u * u * t * a[1] + 3 * u * t * t * b[1] + t * t * t * e[1]]); }
+			cur = e;
+		}
+	}
+	raw.pop(); // last point repeats the first
+	const len = [0]; for (let k = 1; k <= raw.length; k++) len.push(len[k - 1] + Math.hypot(raw[k % raw.length][0] - raw[k - 1][0], raw[k % raw.length][1] - raw[k - 1][1]));
+	const total = len[len.length - 1], n = Math.round(total / 4), out = [];
+	for (let k = 0, j = 0; k < n; k++) { const s = k / n * total; while (len[j + 1] < s) j++; const f = (s - len[j]) / (len[j + 1] - len[j]), A = raw[j], B = raw[(j + 1) % raw.length]; out.push([A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f]); }
+	return out;
+})();
+const inside = (x, y) => { let c = false; for (let i = 0, j = edge.length - 1; i < edge.length; j = i++) { const [xi, yi] = edge[i], [xj, yj] = edge[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+const distEdge = (x, y) => { let m = 1e9; for (let i = 0; i < edge.length; i++) { const [ax, ay] = edge[i], [bx, by] = edge[(i + 1) % edge.length], dx = bx - ax, dy = by - ay, t = clamp(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy), 0, 1); m = Math.min(m, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return m; };
+const pts = edge.map((p) => [...p]), dist = edge.map(() => 0);
+// Rings just inside the edge (so the silhouette rolls away smoothly), then a hex grid for the rest.
+for (const off of [2, 5, 9]) edge.forEach(([x, y], i) => {
+	const [px0, py0] = edge[(i + edge.length - 1) % edge.length], [px1, py1] = edge[(i + 1) % edge.length];
+	let nx = -(py1 - py0), ny = px1 - px0; const L = Math.hypot(nx, ny) || 1; nx /= L; ny /= L;
+	let qx = x + nx * off, qy = y + ny * off;
+	if (!inside(qx, qy)) { qx = x - nx * off; qy = y - ny * off; }
+	if (i % (off > 5 ? 2 : 1) === 0 && inside(qx, qy)) { const d = distEdge(qx, qy); if (d > off * .6) { pts.push([qx, qy]); dist.push(d); } }
+});
+for (let y = 20, row = 0; y < 480; y += 9 * .866, row++) for (let x = 30 + (row % 2) * 4.5; x < 480; x += 9) if (inside(x, y)) { const d = distEdge(x, y); if (d > 11) { pts.push([x, y]); dist.push(d); } }
+const NE = edge.length, NP = pts.length;
+// Inflate: height = outer skin of all the inscribed balls
+const zRest = new Float32Array(NP);
+for (let i = NE; i < NP; i++) { let z = 0; const [x, y] = pts[i]; for (let q = NE; q < NP; q++) { const r = dist[q], dx = x - pts[q][0]; if (Math.abs(dx) >= r) continue; const dy = y - pts[q][1], h = r * r - dx * dx - dy * dy; if (h > z * z) z = Math.sqrt(h); } zRest[i] = z * DEPTH; }
+// Triangulate, keeping only triangles inside the outline (drops the ones bridging the notch under the tip)
+const tri = new Delaunator(pts.flat()).triangles, front = [];
+for (let k = 0; k < tri.length; k += 3) {
+	const [a, b, c] = [tri[k], tri[k + 1], tri[k + 2]];
+	if (!inside((pts[a][0] + pts[b][0] + pts[c][0]) / 3, (pts[a][1] + pts[b][1] + pts[c][1]) / 3)) continue;
+	// counter-clockwise when seen from the front (world y points up, design y points down)
+	const cross = (pts[b][0] - pts[a][0]) * (pts[a][1] - pts[c][1]) - (pts[a][1] - pts[b][1]) * (pts[c][0] - pts[a][0]);
+	front.push(...(cross > 0 ? [a, b, c] : [a, c, b]));
+}
+// Soften the ball-skin a little so it reads as one smooth plush shape
+{ const nb = Array.from({ length: NP }, () => new Set()); for (let k = 0; k < front.length; k += 3) for (let m = 0; m < 3; m++) { nb[front[k + m]].add(front[k + (m + 1) % 3]); nb[front[k + m]].add(front[k + (m + 2) % 3]); }
+	for (let it = 0; it < 14; it++) { const z2 = zRest.slice(); for (let i = NE; i < NP; i++) { let s = 0; nb[i].forEach((j) => (s += zRest[j])); z2[i] = zRest[i] * .5 + .5 * s / nb[i].size; } zRest.set(z2); }
+	const zMax = Math.max(...zRest); for (let i = NE; i < NP; i++) zRest[i] = zMax * Math.pow(zRest[i] / zMax, FULL); }
+// Vertices: front copies (0..NP-1) and back copies (NP..2NP-1). Edge vertices are duplicated so the onion
+// texture can wrap cleanly; their normals get averaged so the silhouette stays smooth.
+const NV = NP * 2, bodyGeo = new THREE.BufferGeometry();
+bodyGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NV * 3), 3));
+const back = []; for (let k = 0; k < front.length; k += 3) back.push(front[k] + NP, front[k + 2] + NP, front[k + 1] + NP);
+bodyGeo.setIndex([...front, ...back]);
+{ const uv = new Float32Array(NV * 2); for (let i = 0; i < NP; i++) { const xw = (pts[i][0] - 250), yv = (471 - pts[i][1]) / 440; for (const s of [1, -1]) { let u = Math.atan2(xw, s * zRest[i] + (s < 0 ? -1e-6 : 1e-6)) / (Math.PI * 2) + .25; if (s < 0 && u < .5) u += 1; uv.set([u, yv], (i + (s < 0 ? NP : 0)) * 2); } } bodyGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
+// The face mesh shares the body's moving vertices, front half only, mapped flat in the 2D rig's coordinates.
+const faceGeo = new THREE.BufferGeometry();
+faceGeo.setAttribute('position', bodyGeo.attributes.position);
+faceGeo.setIndex(front);
+{ const uv = new Float32Array(NV * 2); for (let i = 0; i < NP; i++) uv.set([pts[i][0] / 500, 1 - pts[i][1] / 500], i * 2); faceGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
+
+// Posing: first the 2D rig's own deform (slump, tall, curl, ripple), then the 3D extras (tornado funnel and twist).
+const deform2 = (x, y, P, t) => {
+	if (y < 100 && x > 180) { // the curl: the hooked tip turns around its root, and droops with curlSag
+		const w = Math.min(1, (100 - y) / 70) * Math.min(1, (x - 180) / 60), px = 262, py = 96, a = (P.curl * Math.PI / 180) * w, dx = x - px, dy = y - py;
+		x = px + dx * Math.cos(a) - dy * Math.sin(a); y = py + dx * Math.sin(a) + dy * Math.cos(a) + P.curlSag * w * 40;
+		// Under a hat the cowlick tucks away: it folds down toward its root into a soft bump
+		if (P.tuck > .001) { const k = 1 - P.tuck * w * .9; x = px + (x - px) * k; y = py + (y - py) * k + P.tuck * w * 26; }
+	}
+	const s = P.slump - P.tall * .6, below = Math.max(0, (y - 300) / 170), above = Math.max(0, (300 - y) / 270);
+	x = 250 + (x - 250) * (1 + s * .28 * below + s * .1);
+	y = y + s * 70 * above - s * 10 * below;
+	// Frown (> 0) droops his sides into a ∩; smile (< 0) lifts them into a ∪. The base stays planted.
+	{ const u = (x - 250) / 215, wy = clamp((471 - y) / 220, 0, 1); y += P.frown * 40 * u * u * wy; }
+	y += Math.sin(x / 40 + t * 3.33) * P.ripple * 6;
+	// Melting: he spreads at the base and sags in slow drippy waves, more the lower you go
+	if (P.melt > .001) { const low = clamp((y - 180) / 290, 0, 1); x = 250 + (x - 250) * (1 + P.melt * .22 * low * low); y += P.melt * low * low * (24 + 22 * Math.max(0, Math.sin(x / 19 + t * 1.3)) ** 3) - P.melt * (1 - low) * 22; }
+	return [x, y];
+};
+const buildBody = (P, t) => {
+	const a = bodyGeo.attributes.position.array;
+	for (let i = 0; i < NP; i++) {
+		const [dx, dy] = deform2(pts[i][0], pts[i][1], P, t);
+		const x = (dx - 250) * K, y = (471 - dy) * K, z = zRest[i] * K * (1 + (P.slump - P.tall * .6) * .12);
+		for (const side of [1, -1]) {
+			let X = x, Y = y, Z = z * side;
+			// Pumpkin ribs: eight grooves pressed in around his vertical axis, with a full rib down the middle of his face
+			if (P.ribs > .001) { const th = Math.atan2(X, Z), k = 1 - P.ribs * (.02 + .085 * Math.exp(-(Math.cos(th * 4) ** 2) * 9)); X *= k; Z *= k; }
+			if (P.funnel > .001 || Math.abs(P.twist) > .001) {
+				const h = clamp(Y / 2.1, 0, 1.2), rs = 1 + P.funnel * (.12 + 1.3 * h * h - 1), q = P.twist * h, c = Math.cos(q), s = Math.sin(q), X2 = X * rs, Z2 = Z * rs;
+				X = X2 * c + Z2 * s; Z = Z2 * c - X2 * s; Y *= 1 + P.funnel * .12;
+			}
+			a.set([X, Y, Z], (i + (side < 0 ? NP : 0)) * 3);
+		}
+	}
+	bodyGeo.attributes.position.needsUpdate = true;
+	bodyGeo.computeVertexNormals();
+	const n = bodyGeo.attributes.normal.array; // weld the normals along the silhouette
+	for (let i = 0; i < NE; i++) for (let k = 0; k < 3; k++) { const m = (n[i * 3 + k] + n[(i + NP) * 3 + k]) / 2; n[i * 3 + k] = n[(i + NP) * 3 + k] = m; }
+};
+
+// ── Looks: flat cartoon, jelly, onion ──
+const CYAN = new THREE.Color('#5cdfe4');
+const toonRamp = new THREE.DataTexture(new Uint8Array([200, 200, 200, 255, 238, 238, 238, 255, 255, 255, 255, 255]), 3, 1);
+toonRamp.minFilter = toonRamp.magFilter = THREE.NearestFilter; toonRamp.needsUpdate = true;
+const onionTex = (() => {
+	const c = Object.assign(document.createElement('canvas'), { width: 1024, height: 512 }), g = c.getContext('2d');
+	const v = g.createLinearGradient(0, 0, 0, 512);
+	v.addColorStop(0, '#6b3f1c'); v.addColorStop(.12, '#a8652a'); v.addColorStop(.45, '#d0913f'); v.addColorStop(.8, '#c98a3e'); v.addColorStop(1, '#e8d2a6');
+	g.fillStyle = v; g.fillRect(0, 0, 1024, 512);
+	// Veins: lines of constant longitude, which meet at the tip and the root like a real onion's
+	for (let i = 0; i < 70; i++) {
+		const x = (i / 70) * 1024 + (Math.random() - .5) * 8, dark = Math.random() < .6;
+		g.strokeStyle = dark ? `rgba(90,45,15,${.18 + Math.random() * .25})` : `rgba(255,225,160,${.12 + Math.random() * .2})`;
+		g.lineWidth = .8 + Math.random() * 2.2;
+		g.beginPath(); g.moveTo(x, 0);
+		for (let y = 0; y <= 512; y += 32) g.lineTo(x + Math.sin(y / 70 + i) * 3, y);
+		g.stroke();
+	}
+	// Papery patches and speckle
+	for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(240,205,150,${Math.random() * .18})`; g.beginPath(); g.ellipse(Math.random() * 1024, 80 + Math.random() * 400, 20 + Math.random() * 60, 30 + Math.random() * 90, 0, 0, Math.PI * 2); g.fill(); }
+	const d = g.getImageData(0, 0, 1024, 512); for (let i = 0; i < d.data.length; i += 4) { const n = (Math.random() - .5) * 18; d.data[i] += n; d.data[i + 1] += n; d.data[i + 2] += n; } g.putImageData(d, 0, 0);
+	const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
+	return t;
+})();
+const pumpkinTex = (() => {
+	const c = Object.assign(document.createElement('canvas'), { width: 1024, height: 512 }), g = c.getContext('2d');
+	const v = g.createLinearGradient(0, 0, 0, 512);
+	v.addColorStop(0, '#4f6b22'); v.addColorStop(.07, '#6a5a1e'); v.addColorStop(.1, '#e2711d'); v.addColorStop(.55, '#f08a24'); v.addColorStop(1, '#c9561a');
+	g.fillStyle = v; g.fillRect(0, 0, 1024, 512);
+	// darker grooves line up with the ribs pressed into his body (u = n/8 + 1/16)
+	for (let n = 0; n < 8; n++) { const x = (n / 8 + 1 / 16) * 1024, gr = g.createLinearGradient(x - 40, 0, x + 40, 0); gr.addColorStop(0, 'rgba(120,40,0,0)'); gr.addColorStop(.5, 'rgba(120,40,0,.45)'); gr.addColorStop(1, 'rgba(120,40,0,0)'); g.fillStyle = gr; g.fillRect(x - 40, 40, 80, 472); }
+	for (let i = 0; i < 160; i++) { g.strokeStyle = `rgba(255,200,120,${Math.random() * .12})`; g.lineWidth = 1 + Math.random() * 2; const x = Math.random() * 1024; g.beginPath(); g.moveTo(x, 50); g.bezierCurveTo(x + 6, 200, x - 6, 350, x, 512); g.stroke(); }
+	const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
+})();
+const knitTex = (() => {
+	const W = 1024, H = 512, c = Object.assign(document.createElement('canvas'), { width: W, height: H }), g = c.getContext('2d');
+	g.fillStyle = '#1d6b3c'; g.fillRect(0, 0, W, H);
+	// Fair Isle bands: white bands with green tree motifs, built from "stitch" cells like real knitting charts
+	const cell = 8, band = (y0, rows) => { g.fillStyle = '#f4efe6'; g.fillRect(0, y0, W, rows * cell); };
+	band(170, 2); band(296, 2); band(194, 13);
+	g.fillStyle = '#c21f32';
+	for (let x0 = 0; x0 < W; x0 += 64) for (let r = 0; r < 9; r++) { const w = r + 1; for (let k = -Math.floor(w / 2); k <= Math.floor(w / 2); k++) g.fillRect(x0 + 32 + k * cell, 194 + cell * (1 + r), cell, cell); }
+	g.fillStyle = '#7a4a1e'; for (let x0 = 0; x0 < W; x0 += 64) g.fillRect(x0 + 32, 194 + cell * 10, cell, cell * 2);
+	g.fillStyle = '#1d6b3c'; for (let x = 0; x < W; x += 32) { g.fillRect(x, 178, cell, cell); g.fillRect(x + 16, 296 + 4, cell, cell); }
+	// V stitches over everything
+	for (let y = 0; y < H; y += 8) for (let x = 0; x < W; x += 8) { g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x + 1, y + 1); g.lineTo(x + 4, y + 7); g.lineTo(x + 7, y + 1); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.moveTo(x + 2, y + 1); g.lineTo(x + 4, y + 5); g.stroke(); }
+	const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = 8; return t;
+})();
+const ornamentTex = (() => {
+	const W = 1024, H = 512, c = Object.assign(document.createElement('canvas'), { width: W, height: H }), g = c.getContext('2d');
+	g.fillStyle = '#e0303f'; g.fillRect(0, 0, W, H);
+	// gold zigzag band with white pinstripes, and a scatter of little snowflake dots: a cartoon bauble
+	g.fillStyle = '#ffffff'; g.fillRect(0, 200, W, 6); g.fillRect(0, 300, W, 6);
+	g.fillStyle = '#ffcf4a'; g.beginPath(); g.moveTo(0, 225); for (let x = 0; x <= W; x += 32) g.lineTo(x, (x / 32) % 2 ? 222 : 246); for (let x = W; x >= 0; x -= 32) g.lineTo(x, (x / 32) % 2 ? 282 : 258); g.fill();
+	g.fillStyle = '#fff6d8'; for (let x = 16; x < W; x += 64) { g.beginPath(); g.arc(x, 252, 7, 0, 7); g.fill(); }
+	g.fillStyle = 'rgba(255,255,255,.85)'; for (let k = 0; k < 60; k++) { const x = (k * 97) % W, y = k % 2 ? 60 + (k * 37) % 120 : 330 + (k * 53) % 150; g.beginPath(); g.arc(x, y, 4 + (k % 3) * 2, 0, 7); g.fill(); }
+	const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
+})();
+const LOOKS = {
+	cartoon: { label: 'Cartoon', lid: '#2aa9b6', body: new THREE.MeshToonMaterial({ color: CYAN, gradientMap: toonRamp }), env: null, tone: THREE.NoToneMapping },
+	jelly: { label: 'Jelly', lid: '#1c8f9b', body: new THREE.MeshPhysicalMaterial({ color: CYAN, roughness: .12, transmission: .55, thickness: 1.4, ior: 1.33, clearcoat: 1, clearcoatRoughness: .1, attenuationColor: new THREE.Color('#2bb8c4'), attenuationDistance: 1.6 }), env: envMap, tone: THREE.NoToneMapping },
+	pumpkin: { label: 'Pumpkin', lid: '#9a3f0e', body: new THREE.MeshToonMaterial({ map: pumpkinTex, gradientMap: toonRamp }), env: null, tone: THREE.NoToneMapping },
+	evil: { label: 'Evil', lid: '#170b26', body: new THREE.MeshToonMaterial({ color: '#3b2557', gradientMap: toonRamp }), env: null, tone: THREE.NoToneMapping },
+	ornament: { label: 'Ornament', lid: '#8c1222', body: new THREE.MeshToonMaterial({ map: ornamentTex, gradientMap: toonRamp }), env: null, tone: THREE.NoToneMapping },
+	knit: { label: 'Knit sweater', lid: '#0f4223', body: new THREE.MeshStandardMaterial({ map: knitTex, bumpMap: knitTex, bumpScale: 2, roughness: .95 }), env: envMap, tone: THREE.NoToneMapping },
+	onion: { label: 'Onion', lid: '#8a5524', body: new THREE.MeshStandardMaterial({ map: onionTex, bumpMap: onionTex, bumpScale: 1.5, roughness: .48, metalness: 0 }), env: envMap, tone: THREE.NoToneMapping },
+};
+for (const L of Object.values(LOOKS)) { L.base = L.body.color.clone(); addPattern(L.body); L.shard = addPattern(L.body.clone()); L.shard.side = THREE.DoubleSide; }
+let look = 'cartoon', lidColor = '#2aa9b6', glowEyes = false, redEyes = false;
+
+const group = new THREE.Group(); group.position.y = -1; scene.add(group);
+const spinner = new THREE.Group(); group.add(spinner);
+const body = new THREE.Mesh(bodyGeo, LOOKS.cartoon.body); spinner.add(body); addInk(body);
+// These meshes are rebuilt every frame, so three.js's cached bounds go stale; never skip drawing them.
+body.frustumCulled = false;
+
+// Onion roots: a few hairs hanging from the base, onion look only
+const ROOTS = 22, rootGeo = new THREE.BufferGeometry(), rootPts = new Float32Array(ROOTS * 6 * 3);
+rootGeo.setAttribute('position', new THREE.BufferAttribute(rootPts, 3));
+{ const idx = []; for (let r = 0; r < ROOTS; r++) for (let k = 0; k < 5; k++) idx.push(r * 6 + k, r * 6 + k + 1); rootGeo.setIndex(idx); }
+const rootSeed = Array.from({ length: ROOTS }, () => [Math.random() * Math.PI * 2, .05 + Math.random() * .1, .12 + Math.random() * .2]);
+const roots = new THREE.LineSegments(rootGeo, new THREE.LineBasicMaterial({ color: '#d9c49a' })); spinner.add(roots);
+roots.frustumCulled = false;
+const buildRoots = (t) => { rootSeed.forEach(([a, r0, len], i) => { for (let k = 0; k < 6; k++) { const u = k / 5, rr = r0 + u * len * .9; rootPts.set([Math.sin(a) * rr, -u * len * .55 + Math.sin(t * 2 + i) * .01 * u + .02, Math.cos(a) * rr], (i * 6 + k) * 3); } }); rootGeo.attributes.position.needsUpdate = true; };
+
+// ── Face: drawn in the 2D rig's own coordinates (0–500) onto a canvas that the face mesh maps flat ──
+const faceCanvas = Object.assign(document.createElement('canvas'), { width: 1024, height: 1024 });
+const fctx = faceCanvas.getContext('2d');
+const faceTex = new THREE.CanvasTexture(faceCanvas); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = 8;
+const face = new THREE.Mesh(faceGeo, new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+spinner.add(face);
+face.frustumCulled = false;
+
+// ── Geometric deconstruction: his surface is cut into irregular cells (a cracked mosaic), each moved as one rigid
+// piece. Cracks open and glow, then pieces drift, tumble and orbit, then come home. ──
+const CELLS = 36, NC = CELLS * 2, IDX = bodyGeo.index.array, TRIS = IDX.length / 3, TF = front.length / 3;
+const triCell = new Uint16Array(TRIS);
+{
+	const seeds = []; while (seeds.length < CELLS) { const x = 40 + Math.random() * 430, y = 30 + Math.random() * 445; if (inside(x, y)) seeds.push([x, y]); }
+	for (let k = 0; k < TRIS; k++) {
+		let cx = 0, cy = 0; for (let m = 0; m < 3; m++) { const v = IDX[k * 3 + m] % NP; cx += pts[v][0] / 3; cy += pts[v][1] / 3; }
+		let best = 0, bd = 1e9; seeds.forEach(([sx, sy], j) => { const d = (sx - cx) ** 2 + (sy - cy) ** 2; if (d < bd) { bd = d; best = j; } });
+		triCell[k] = best + (IDX[k * 3] >= NP ? CELLS : 0);
+	}
+}
+const cellDir = new Float32Array(NC * 3), cellAxis = new Float32Array(NC * 3), cellSpin = new Float32Array(NC), cellDelay = new Float32Array(NC), cellOrbit = new Float32Array(NC);
+for (let c = 0; c < NC; c++) {
+	const v = new THREE.Vector3(Math.random() - .5, Math.random() - .5, (c < CELLS ? 1 : -1) * (.4 + Math.random() * .6)).normalize();
+	cellDir.set([v.x, v.y, v.z], c * 3);
+	const a = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(); cellAxis.set([a.x, a.y, a.z], c * 3);
+	cellSpin[c] = Math.random() * 2 - 1; cellDelay[c] = Math.random() * .45; cellOrbit[c] = .5 + Math.random();
+}
+const shardPos = new Float32Array(TRIS * 9), shardNor = new Float32Array(TRIS * 9);
+const shardGeo = new THREE.BufferGeometry();
+shardGeo.setAttribute('position', new THREE.BufferAttribute(shardPos, 3));
+shardGeo.setAttribute('normal', new THREE.BufferAttribute(shardNor, 3));
+{ const uvB = bodyGeo.attributes.uv.array, uv = new Float32Array(TRIS * 6); for (let k = 0; k < TRIS * 3; k++) uv.set([uvB[IDX[k] * 2], uvB[IDX[k] * 2 + 1]], k * 2); shardGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
+const faceShardGeo = new THREE.BufferGeometry();
+faceShardGeo.setAttribute('position', new THREE.BufferAttribute(shardPos.subarray(0, TF * 9), 3)); // the face rides on the same pieces
+{ const uvF = faceGeo.attributes.uv.array, uv = new Float32Array(TF * 6); for (let k = 0; k < TF * 3; k++) uv.set([uvF[IDX[k] * 2], uvF[IDX[k] * 2 + 1]], k * 2); faceShardGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
+const shards = new THREE.Mesh(shardGeo, LOOKS.cartoon.shard), faceShards = new THREE.Mesh(faceShardGeo, face.material);
+shards.visible = faceShards.visible = false; shards.frustumCulled = faceShards.frustumCulled = false;
+spinner.add(shards, faceShards); addInk(shards);
+// Glowing seams: every edge where two cells meet (and his silhouette), carried by its piece
+const segs = [];
+{
+	const em = new Map();
+	for (let k = 0; k < TRIS; k++) for (let m = 0; m < 3; m++) { const a = IDX[k * 3 + m], b = IDX[k * 3 + (m + 1) % 3], key = Math.min(a, b) * 1e6 + Math.max(a, b); (em.get(key) || em.set(key, []).get(key)).push([k, a, b]); }
+	em.forEach((l) => { if (l.length !== 2 || triCell[l[0][0]] !== triCell[l[1][0]]) l.forEach(([k, a, b]) => segs.push(a, b, triCell[k])); });
+}
+const seamPos = new Float32Array(segs.length / 3 * 6), seamGeo = new THREE.BufferGeometry();
+seamGeo.setAttribute('position', new THREE.BufferAttribute(seamPos, 3));
+const seamMat = new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+const seams = new THREE.LineSegments(seamGeo, seamMat); seams.visible = false; seams.frustumCulled = false; spinner.add(seams);
+const cellC = new Float32Array(NC * 3), cellN = new Uint32Array(NC), cellM = new Float32Array(NC * 12);
+const _q = new THREE.Quaternion(), _ax = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _ry = new THREE.Matrix4();
+const shatter = (L, t) => {
+	const P = bodyGeo.attributes.position.array, N = bodyGeo.attributes.normal.array;
+	cellC.fill(0); cellN.fill(0);
+	for (let k = 0; k < TRIS; k++) { const c = triCell[k]; for (let m = 0; m < 3; m++) { const v = IDX[k * 3 + m] * 3; cellC[c * 3] += P[v]; cellC[c * 3 + 1] += P[v + 1]; cellC[c * 3 + 2] += P[v + 2]; } cellN[c] += 3; }
+	for (let c = 0; c < NC; c++) {
+		const n = cellN[c] || 1, cx = cellC[c * 3] /= n, cy = cellC[c * 3 + 1] /= n, cz = cellC[c * 3 + 2] /= n;
+		const e0 = clamp((L - cellDelay[c]) / (1 - cellDelay[c]), 0, 1), e = e0 * e0 * (3 - 2 * e0);
+		const d = Math.min(1, L / .15) * .045 + e * (1.1 + cellDelay[c] * 1.5), orb = e * t * .45 * cellOrbit[c];
+		const ox = cx + cellDir[c * 3] * d, oy = cy + cellDir[c * 3 + 1] * d, oz = cz + cellDir[c * 3 + 2] * d, co = Math.cos(orb), so = Math.sin(orb);
+		_q.setFromAxisAngle(_ax.fromArray(cellAxis, c * 3), e * (1.8 + cellSpin[c]) + e * t * cellSpin[c] * .6);
+		_m4.makeRotationFromQuaternion(_q).premultiply(_ry.makeRotationY(orb));
+		const el = _m4.elements;
+		cellM.set([el[0], el[1], el[2], el[4], el[5], el[6], el[8], el[9], el[10], ox * co + oz * so, oy, oz * co - ox * so], c * 12);
+	}
+	const xf = (v, c, out, o) => { const M = c * 12, x = P[v] - cellC[c * 3], y = P[v + 1] - cellC[c * 3 + 1], z = P[v + 2] - cellC[c * 3 + 2]; out[o] = cellM[M] * x + cellM[M + 3] * y + cellM[M + 6] * z + cellM[M + 9]; out[o + 1] = cellM[M + 1] * x + cellM[M + 4] * y + cellM[M + 7] * z + cellM[M + 10]; out[o + 2] = cellM[M + 2] * x + cellM[M + 5] * y + cellM[M + 8] * z + cellM[M + 11]; };
+	for (let k = 0; k < TRIS; k++) {
+		const c = triCell[k], M = c * 12;
+		for (let m = 0; m < 3; m++) {
+			const v = IDX[k * 3 + m] * 3, o = (k * 3 + m) * 3;
+			xf(v, c, shardPos, o);
+			const nx = N[v], ny = N[v + 1], nz = N[v + 2];
+			shardNor[o] = cellM[M] * nx + cellM[M + 3] * ny + cellM[M + 6] * nz; shardNor[o + 1] = cellM[M + 1] * nx + cellM[M + 4] * ny + cellM[M + 7] * nz; shardNor[o + 2] = cellM[M + 2] * nx + cellM[M + 5] * ny + cellM[M + 8] * nz;
+		}
+	}
+	for (let s = 0, o = 0; s < segs.length; s += 3, o += 6) { xf(segs[s] * 3, segs[s + 2], seamPos, o); xf(segs[s + 1] * 3, segs[s + 2], seamPos, o + 3); }
+	shardGeo.attributes.position.needsUpdate = shardGeo.attributes.normal.needsUpdate = faceShardGeo.attributes.position.needsUpdate = seamGeo.attributes.position.needsUpdate = true;
+};
+
+// The little Spunion stamped into every tile of hyperbolic space
+{
+	const g = stampCanvas.getContext('2d'); g.setTransform(256 / 500, 0, 0, 256 / 500, 0, 0);
+	g.fillStyle = '#5cdfe4'; g.fill(new Path2D(OUTLINE));
+	g.fillStyle = '#000'; g.beginPath(); g.arc(185, 300, 86, 0, 7); g.arc(357, 268, 64, 0, 7); g.fill();
+	g.strokeStyle = '#fff'; g.lineWidth = 10; g.beginPath(); g.arc(185, 300, 70, 0, 7); g.stroke(); g.beginPath(); g.arc(357, 268, 49, 0, 7); g.stroke();
+	stampTex.needsUpdate = true;
+}
+
+// ── Props. The worn ones are pinned to points on his moving surface; the buddies float beside him.
+// Every prop is made of parts, and during a trip the parts come apart too. ──
+const nearest = (x, y, edgeOnly) => { let best = 0, bd = 1e9; for (let i = 0; i < (edgeOnly ? NE : NP); i++) { const d = (pts[i][0] - x) ** 2 + (pts[i][1] - y) ** 2; if (d < bd) { bd = d; best = i; } } return best; };
+const at = (i, out, nrm) => { const a = bodyGeo.attributes.position.array, n = bodyGeo.attributes.normal.array; out.set(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]); if (nrm) nrm.set(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]).normalize(); return out; };
+const AXY = new THREE.Vector3(0, 1, 0), AXZ = new THREE.Vector3(0, 0, 1);
+const stretch = (m, a, b) => { m.position.addVectors(a, b).multiplyScalar(.5); m.scale.set(1, Math.max(.001, a.distanceTo(b)), 1); m.quaternion.setFromUnitVectors(AXY, _ax.subVectors(b, a).normalize()); };
+const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .45, ...o });
+const canvasTex = (w, h, draw) => { const c = Object.assign(document.createElement('canvas'), { width: w, height: h }); draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const PROPS = {};
+const toonOf = new Map(); // a prop's lit material → its cartoon twin (same colour/texture, banded light)
+const prop = (key, label, parent, parts, update) => {
+	const g = new THREE.Group(); parts.forEach((m) => g.add(m)); parent.add(g); g.visible = false;
+	parts.forEach((m) => {
+		const M = m.material;
+		if (M.transparent || M.transmission || !m.geometry.attributes.normal) return;
+		if (M.isMeshStandardMaterial && !toonOf.has(M)) toonOf.set(M, new THREE.MeshToonMaterial({ color: M.color, map: M.map, gradientMap: toonRamp, side: M.side }));
+		addInk(m); m.userData.lit = M;
+	});
+	const rest = parts.map((m) => ({ p: m.position.clone(), q: m.quaternion.clone(), s: m.scale.clone(), dir: new THREE.Vector3(Math.random() - .5, Math.random() * .8 - .2, Math.random() - .5).normalize(), axis: new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(), spin: .6 + Math.random() }));
+	PROPS[key] = { label, g, parts, rest, update, on: false };
+};
+const explodeProp = (P, e, t, reset) => P.parts.forEach((m, i) => {
+	const R = P.rest[i];
+	if (reset) { m.position.copy(R.p); m.quaternion.copy(R.q); m.scale.copy(R.s); }
+	if (e > .001) { m.position.addScaledVector(R.dir, e * e * 1.3 + Math.min(1, e * 6) * .05); m.rotateOnAxis(R.axis, e * (2 + t * R.spin)); }
+});
+// 3D glasses: rings over each eye, a bridge, arms back to his sides
+{
+	const black = std('#151515', { roughness: .3 }), lensMat = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide });
+	const ringL = new THREE.Mesh(new THREE.TorusGeometry(.47, .045, 12, 48), black), ringR = new THREE.Mesh(new THREE.TorusGeometry(.36, .045, 12, 48), black);
+	const lensL = new THREE.Mesh(new THREE.CircleGeometry(.46, 40), lensMat('#ff2a3a')), lensR = new THREE.Mesh(new THREE.CircleGeometry(.35, 40), lensMat('#21e6ff'));
+	const cyl = () => new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 1, 8), black), bridge = cyl(), armL = cyl(), armR = cyl();
+	const iL = nearest(185, 300), iR = nearest(357, 268), eL = nearest(38, 300, true), eR = nearest(466, 312, true);
+	const A = new THREE.Vector3(), B = new THREE.Vector3(), nA = new THREE.Vector3(), nB = new THREE.Vector3(), d = new THREE.Vector3(), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), E = new THREE.Vector3();
+	prop('glasses', '3D glasses', spinner, [ringL, ringR, lensL, lensR, bridge, armL, armR], (P, t, e) => {
+		at(iL, A, nA).addScaledVector(nA, .14); at(iR, B, nB).addScaledVector(nB, .14);
+		ringL.position.copy(A); lensL.position.copy(A); ringL.quaternion.setFromUnitVectors(AXZ, nA); lensL.quaternion.copy(ringL.quaternion);
+		ringR.position.copy(B); lensR.position.copy(B); ringR.quaternion.setFromUnitVectors(AXZ, nB); lensR.quaternion.copy(ringR.quaternion);
+		d.subVectors(B, A).normalize();
+		stretch(bridge, a1.copy(A).addScaledVector(d, .47), a2.copy(B).addScaledVector(d, -.36));
+		stretch(armL, a1.copy(A).addScaledVector(d, -.47), at(eL, E).add(a2.set(-.04, .02, -.05)));
+		stretch(armR, a1.copy(B).addScaledVector(d, .36), at(eR, E).add(a2.set(.04, .02, -.05)));
+		explodeProp(P, e, t, false);
+	});
+}
+// Hats sit on the top-left slope of his head, tilted halfway between his surface normal and straight up
+// "Deal with it" pixel shades: chunky voxels with the classic white highlight pixels, tilted to his eye line.
+// They can lower from above the screen (the meme), or just be worn.
+// shadesHeld: the site keeps them on while he's coping with a worry; liftAt: they're rising back off (never a snap).
+let dealAt = 0, dealFace = 0, shadesHeld = false, liftAt = 0;
+{
+	const ART = [
+		'##########################',
+		'..#WW#######..#WW#######..',
+		'..#W########..#W########..',
+		'..##########..##########..',
+		'..##########..##########..',
+		'..##########..##########..',
+		'...########....########...',
+		'....######......######....',
+	];
+	const px = .1, cells = { '#': [], W: [] };
+	ART.forEach((row, r) => [...row].forEach((ch, c) => { if (cells[ch]) cells[ch].push([(c - 12.5) * px, -(r - 3.2) * px]); }));
+	const box = new THREE.BoxGeometry(px * 1.002, px * 1.002, px * .8), m4 = new THREE.Matrix4();
+	const mk = (list, mat) => { const im = new THREE.InstancedMesh(box, mat, list.length); list.forEach(([x, y], k) => im.setMatrixAt(k, m4.makeTranslation(x, y, 0))); im.frustumCulled = false; return im; };
+	const black = mk(cells['#'], std('#0b0b0f', { roughness: .25, metalness: .2 })), white = mk(cells.W, new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+	// A thin light outline just behind the pixels, so they read on a dark page as well as the purple one.
+	const rimBox = new THREE.BoxGeometry(px * 1.5, px * 1.5, px * .4);
+	const rim = new THREE.InstancedMesh(rimBox, new THREE.MeshBasicMaterial({ color: '#e9e6ff' }), cells['#'].length + cells.W.length);
+	[...cells['#'], ...cells.W].forEach(([x, y], k) => rim.setMatrixAt(k, m4.makeTranslation(x, y, -px * .3)));
+	rim.frustumCulled = false;
+	const iL = nearest(185, 300), iR = nearest(357, 268), A = new THREE.Vector3(), B = new THREE.Vector3(), nA = new THREE.Vector3(), nB = new THREE.Vector3(), qz = new THREE.Quaternion();
+	prop('shades', 'Pixel shades', spinner, [rim, black, white], (P, t, e) => {
+		at(iL, A, nA); at(iR, B, nB);
+		const n = nA.add(nB).normalize(), tilt = Math.atan2(B.y - A.y, B.x - A.x);
+		P.g.position.addVectors(A, B).multiplyScalar(.5).addScaledVector(n, .5);
+		P.g.quaternion.setFromUnitVectors(AXZ, n).multiply(qz.setFromAxisAngle(AXZ, tilt));
+		if (dealAt) { // a slow, steady meme descent from above, then a tiny settle
+			const k = (performance.now() - dealAt) / 1600;
+			P.g.position.y += k < 1 ? (1 - k) * 3.4 : Math.max(0, Math.sin((k - 1) * 14) * .03 * (1.3 - k) * 3);
+			if (k > 1.3) dealAt = 0;
+		}
+		if (liftAt) { // taking them off: they ease up and away, the way they came
+			const k = (performance.now() - liftAt) / 1100;
+			P.g.position.y += k * k * 3.4;
+			if (k > 1) (liftAt = 0, PROPS.shades.on = false);
+		}
+		explodeProp(P, e, t, true);
+	});
+}
+// Hats sit on the crown, left of the cowlick, so it pokes out from under the brim like hair would
+const hatOn = (lift, x = 175, y = 118, lean = .3, tilt = 0) => { const i = nearest(x, y, true), A = new THREE.Vector3(), n = new THREE.Vector3(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tilt); return (P, t, e) => { at(i, A, n); A.z = 0; n.z = 0; n.normalize().multiplyScalar(lean).add(_ax.set(0, 1, 0)).normalize(); P.g.position.copy(A).addScaledVector(n, lift); P.g.quaternion.setFromUnitVectors(AXY, n).multiply(q); explodeProp(P, e, t, true); }; };
+// A cone whose tip flops over to one side, for the witch and Santa hats
+const floppyCone = (r, h, droop, sink, crumple = 0) => { const geo = new THREE.ConeGeometry(r, h, 48, 24, true), a = geo.attributes.position; for (let k = 0; k < a.count; k++) { const u = (a.getY(k) + h / 2) / h, x = a.getX(k), z = a.getZ(k), th = Math.atan2(x, z), w = 1 + crumple * (.06 * Math.sin(th * 5 + u * 7) + .05 * Math.sin(u * 13)); a.setX(k, x * w + u * u * droop - crumple * Math.sin(u * Math.PI) * .06 * Math.sign(droop || 1)); a.setZ(k, z * w); a.setY(k, a.getY(k) - u * u * u * sink); } geo.computeVertexNormals(); return geo; };
+// A brim that ripples around its edge and droops toward the rim, like felt
+const wavyBrim = (R, rIn) => { const geo = new THREE.RingGeometry(rIn, R, 72, 6), a = geo.attributes.position; for (let k = 0; k < a.count; k++) { const x = a.getX(k), y = a.getY(k), r = Math.hypot(x, y), u = (r - rIn) / (R - rIn), th = Math.atan2(y, x); a.setZ(k, -u * u * .1 + Math.sin(th * 5) * .035 * u); } geo.rotateX(-Math.PI / 2); geo.computeVertexNormals(); return geo; };
+{
+	const purple = std('#3b1f5c', { roughness: .8, side: THREE.DoubleSide });
+	const cone = new THREE.Mesh(floppyCone(.32, 1.05, .42, .16, 1), purple);
+	const brim = new THREE.Mesh(wavyBrim(.72, .2), purple); brim.position.y = -.51;
+	const band = new THREE.Mesh(new THREE.CylinderGeometry(.3, .325, .12, 40, 1, true), std('#f08a24', { side: THREE.DoubleSide })); band.position.y = -.42;
+	const buckle = new THREE.Mesh(new THREE.BoxGeometry(.1, .08, .02), std('#ffd36e', { metalness: .7, roughness: .3 })); buckle.position.set(0, -.42, .33); buckle.scale.set(1.3, 1.3, 1);
+	// Sits centred on the crown (not on his curl), barely tilted, a touch bigger so it reads as fitting him.
+	// Where the witch hat sits: tuned by eye with the "Hat fit" sliders on this page (saved in this browser, and the
+	// site's embedded Spunion reads the same values).
+	prop('witch', 'Witch hat', spinner, [cone, brim, band, buckle], hatOn(hatFit.lift, hatFit.x, hatFit.y, hatFit.lean, hatFit.tilt));
+	PROPS.witch.g.scale.setScalar(hatFit.scale);
+}
+{
+	const cone = new THREE.Mesh(floppyCone(.42, .85, .58, .36, .8), std('#d32032', { roughness: .85, side: THREE.DoubleSide }));
+	const fur = new THREE.Mesh(new THREE.TorusGeometry(.42, .11, 16, 48), std('#fbfaf5', { roughness: 1 })); fur.rotation.x = Math.PI / 2; fur.position.y = -.4;
+	const pom = new THREE.Mesh(new THREE.SphereGeometry(.11, 20, 14), std('#fbfaf5', { roughness: 1 })); pom.position.set(.62, .425 - .4, 0); pom.scale.setScalar(1.25);
+	prop('santa', 'Santa hat', spinner, [cone, fur, pom], hatOn(.26, 215, 78, .1, .18));
+}
+// Ornament cap: a gold crown with ridges and a hanging loop
+{
+	const gold = std('#ffcf4a', { metalness: .65, roughness: .3 });
+	const crown = new THREE.Mesh(new THREE.CylinderGeometry(.2, .22, .18, 24), gold);
+	const lip = new THREE.Mesh(new THREE.TorusGeometry(.215, .025, 8, 32), gold); lip.rotation.x = Math.PI / 2; lip.position.y = -.08;
+	const ridges = Array.from({ length: 12 }, (_, k) => { const r = new THREE.Mesh(new THREE.BoxGeometry(.025, .16, .025), std('#e0a92a', { metalness: .6, roughness: .35 })); const a = k / 12 * Math.PI * 2; r.position.set(Math.sin(a) * .205, 0, Math.cos(a) * .205); return r; });
+	const loop = new THREE.Mesh(new THREE.TorusGeometry(.08, .018, 8, 24), gold); loop.position.y = .17;
+	const string = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, 3, 6), new THREE.MeshBasicMaterial({ color: '#f4e7c3' })); string.position.y = 1.75;
+	prop('cap', 'Ornament cap', spinner, [crown, lip, ...ridges, loop, string], hatOn(.12, 225, 72, .04));
+}
+// A cartoon joint dangling from the corner of his mouth: paper cone, filter tip, a pulsing ember that smokes
+{
+	const paperGeo = new THREE.CylinderGeometry(.052, .03, .56, 20, 1, true);
+	const paper = new THREE.Mesh(paperGeo, std('#f6f1e4', { roughness: .9, side: THREE.DoubleSide })); paper.position.y = .28;
+	const tip = new THREE.Mesh(new THREE.CylinderGeometry(.031, .031, .08, 16), std('#d9b27a', { roughness: .8 })); tip.position.y = .03;
+	const twist = new THREE.Mesh(new THREE.ConeGeometry(.052, .06, 16), std('#f6f1e4', { roughness: .9 })); twist.position.y = .59;
+	const ember = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 10), new THREE.MeshBasicMaterial({ color: '#ff6a1a' })); ember.position.y = .57; ember.scale.y = .6;
+	const ash = new THREE.Mesh(new THREE.TorusGeometry(.05, .012, 8, 20), std('#7d7a80', { roughness: 1 })); ash.rotation.x = Math.PI / 2; ash.position.y = .55;
+	const i = nearest(300, 398), A = new THREE.Vector3(), n = new THREE.Vector3(), dir = new THREE.Vector3();
+	prop('joint', 'Joint', spinner, [paper, tip, ash, ember], (P, t, e) => {
+		at(i, A, n);
+		dir.copy(n).multiplyScalar(.7).add(_ax.set(.75, -.28, 0)).normalize(); // out of his mouth, off to his left, drooping a little
+		P.g.position.copy(A).addScaledVector(n, .02); P.g.quaternion.setFromUnitVectors(AXY, dir);
+		ember.material.color.setHSL(.05, 1, .5 + .12 * Math.sin(t * 2.2) ** 2);
+		explodeProp(P, e, t, true);
+	});
+	PROPS.joint.ember = ember;
+}
+// Devil horns: two little curved red horns on his crown (the cowlick tucks away under them)
+{
+	const hornGeo = (() => { const g = new THREE.ConeGeometry(.11, .38, 24, 8), a = g.attributes.position; for (let k = 0; k < a.count; k++) { const u = (a.getY(k) + .19) / .38; a.setX(k, a.getX(k) + u * u * .1); } g.computeVertexNormals(); return g; })();
+	const red = std('#d0283a', { roughness: .4 });
+	const hL = new THREE.Mesh(hornGeo, red), hR = new THREE.Mesh(hornGeo, red);
+	const iL = nearest(150, 150, true), iR = nearest(330, 98, true), A = new THREE.Vector3(), n = new THREE.Vector3();
+	prop('horns', 'Devil horns', spinner, [hL, hR], (P, t, e) => {
+		for (const [h, i, flip] of [[hL, iL, -1], [hR, iR, 1]]) { at(i, A, n); n.z = 0; n.normalize().multiplyScalar(.5).add(_ax.set(0, 1, 0)).normalize(); h.position.copy(A).addScaledVector(n, .12); h.quaternion.setFromUnitVectors(AXY, n); h.scale.x = flip; }
+		explodeProp(P, e, t, false);
+	});
+}
+// Ornament hanger: his own cowlick is the hook; a little gold loop round its tip and a string up out of frame
+{
+	const i = nearest(300, 45), A = new THREE.Vector3();
+	const loop = new THREE.Mesh(new THREE.TorusGeometry(.06, .016, 8, 24), std('#ffcf4a', { metalness: .65, roughness: .3 }));
+	const string = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, 4, 6), new THREE.MeshBasicMaterial({ color: '#f4e7c3' }));
+	prop('hanger', 'Ornament hanger', spinner, [loop, string], (P, t, e) => { at(i, A); loop.position.copy(A).add(_ax.set(0, .03, 0)); loop.rotation.set(0, Math.PI / 2, 0); string.position.copy(A).add(_ax.set(0, 2.08, 0)); explodeProp(P, e, t, false); });
+}
+// Party hat on the top-left slope of his head
+{
+	const stripes = canvasTex(256, 256, (g) => { g.fillStyle = '#ff6ad5'; g.fillRect(0, 0, 256, 256); ['#ffd36e', '#8ff4f7'].forEach((c, k) => { g.fillStyle = c; for (let x = -256 + k * 32; x < 512; x += 64) { g.beginPath(); g.moveTo(x, 256); g.lineTo(x + 32, 256); g.lineTo(x + 32 + 128, 0); g.lineTo(x + 128, 0); g.fill(); } }); });
+	const cone = new THREE.Mesh(new THREE.ConeGeometry(.3, .72, 40, 1, true), new THREE.MeshStandardMaterial({ map: stripes, side: THREE.DoubleSide, roughness: .6 }));
+	const pom = new THREE.Mesh(new THREE.SphereGeometry(.1, 20, 12), std('#fff6c8', { roughness: .9 })); pom.position.y = .38;
+	const band = new THREE.Mesh(new THREE.TorusGeometry(.29, .035, 10, 40), std('#ffd36e', { metalness: .6, roughness: .3 })); band.rotation.x = Math.PI / 2; band.position.y = -.34;
+	prop('hat', 'Party hat', spinner, [cone, pom, band], hatOn(.32, 225, 72, .1));
+}
+// Water bottle buddy (hydration is the harm-reduction basic): a sports bottle spun from a curved profile
+{
+	const lathe = (pts, n = 48) => new THREE.LatheGeometry(new THREE.SplineCurve(pts.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(48), n);
+	const PROFILE_B = [[0, -.38], [.13, -.38], [.168, -.355], [.172, -.3], [.17, -.12], [.152, -.04], [.15, .02], [.168, .1], [.172, .18], [.15, .26], [.1, .31], [.072, .335], [.072, .37]];
+	const plastic = new THREE.MeshPhysicalMaterial({ color: '#eaf9ff', roughness: .06, transmission: 1, thickness: .06, ior: 1.42, envMap, envMapIntensity: 1.2, clearcoat: 1, clearcoatRoughness: .05, side: THREE.DoubleSide });
+	const shell = new THREE.Mesh(lathe(PROFILE_B), plastic);
+	const waterMat = new THREE.MeshPhysicalMaterial({ color: '#2fa8ff', roughness: .08, transmission: .55, thickness: .3, ior: 1.33, envMap, envMapIntensity: .8 });
+	const water = new THREE.Mesh(lathe(PROFILE_B.filter(([, y]) => y <= .14).map(([r, y]) => [r * .93, y * .97]).concat([[0, .135]])), waterMat);
+	const label = canvasTex(512, 128, (g, w, h) => {
+		const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1b5fd6'); gr.addColorStop(1, '#2c7cff'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+		g.fillStyle = '#ffffff'; g.font = '800 54px ui-sans-serif, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+		for (const x of [128, 384]) { g.fillText('WATER', x + 14, h / 2 + 3); g.beginPath(); g.moveTo(x - 92, 40); g.bezierCurveTo(x - 80, 58, x - 74, 70, x - 74, 78); g.arc(x - 92, 78, 18, 0, Math.PI); g.bezierCurveTo(x - 110, 70, x - 104, 58, x - 92, 40); g.fill(); }
+	});
+	label.wrapS = THREE.RepeatWrapping;
+	const tag = new THREE.Mesh(new THREE.CylinderGeometry(.174, .174, .17, 48, 1, true), new THREE.MeshStandardMaterial({ map: label, roughness: .5 })); tag.position.y = -.21;
+	const capMat = std('#2c6cff', { roughness: .35 });
+	const cap = new THREE.Mesh(lathe([[0, .36], [.085, .36], [.092, .38], [.09, .44], [.07, .47], [.04, .48], [0, .48]]), capMat);
+	const spout = new THREE.Mesh(new THREE.CylinderGeometry(.026, .03, .07, 20), std('#e9f4ff', { roughness: .3 })); spout.position.y = .51;
+	const ring = new THREE.Mesh(new THREE.TorusGeometry(.09, .012, 8, 32), capMat); ring.rotation.x = Math.PI / 2; ring.position.y = .4;
+	prop('water', 'Water bottle', scene, [water, shell, tag, cap, spout, ring], (P, t, e) => {
+		// Offering it, as a show: the bottle swings round him, they swap places (it takes centre stage, huge and
+		// glowing, while he shrinks off to the side to watch), then it swings back. An 8-second loop while he's on
+		// about water.
+		const c = waterPush ? (t % 8) : 7.9, ease = (x) => x * x * (3 - 2 * x);
+		const swing = c < 1.6 ? ease(c / 1.6) : c < 5 ? 1 : c < 6.6 ? 1 - ease((c - 5) / 1.6) : 0;
+		const a = swing * Math.PI; // round the back of him and out to the front
+		const side = [1.62, 0, .3], centre = [0, -.15, 1.4];
+		const x = side[0] * Math.cos(a) * (1 - swing) + centre[0] * swing, z = side[2] + Math.sin(a) * -1.2 * (1 - swing) + (centre[2] - side[2]) * swing;
+		const y = (side[1] + Math.sin(t * 1.3) * .06) * (1 - swing) + (centre[1] + Math.sin(t * 1.6) * .05) * swing;
+		P.g.position.set(x, y, z);
+		P.g.scale.setScalar(1 + swing * 1.9);
+		P.g.rotation.set(0, t * .6, Math.sin(t * .9) * .15 * (1 - swing));
+		waterShow = swing;
+		waterGlow.position.set(x, y + .35 * (1 + swing * 1.9) * .5, z - .25);
+		waterGlow.scale.setScalar(.8 + swing * 3.6);
+		waterGlow.material.opacity = P.on ? .25 + swing * .65 : 0;
+		explodeProp(P, e, t, true);
+	});
+}
+// Mushroom buddy floating on his left
+{
+	const capM = new THREE.Mesh(new THREE.SphereGeometry(.26, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), std('#e63946', { roughness: .55 })); capM.position.y = .14;
+	const gills = new THREE.Mesh(new THREE.CircleGeometry(.26, 32), std('#f4e3c3', { side: THREE.DoubleSide })); gills.rotation.x = Math.PI / 2; gills.position.y = .14;
+	const stem = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, .32, 24), std('#f6ecd6', { roughness: .8 }));
+	const spots = [[.1, .3], [-.12, .32], [0, .55], [.2, .7], [-.2, .72], [.05, .9]].map(([x, h], k) => { const s = new THREE.Mesh(new THREE.SphereGeometry(.045, 12, 8), std('#ffffff')); const a = k * 1.9; s.position.set(Math.cos(a) * .25 * Math.sin(h * 1.4), .14 + .26 * Math.cos(h * 1.4) * .9, Math.sin(a) * .25 * Math.sin(h * 1.4) + .02); s.scale.y = .45; return s; });
+	const eyes = [-.04, .04].map((x) => { const m = new THREE.Mesh(new THREE.SphereGeometry(.018, 8, 6), std('#000')); m.position.set(x, .02, .11); return m; });
+	prop('shroom', 'Mushroom buddy', group, [capM, gills, stem, ...spots, ...eyes], (P, t, e) => { P.g.position.set(-1.62, .45 + Math.sin(t * 1.1 + 1) * .07, .3); P.g.rotation.set(0, Math.sin(t * .5) * .4, Math.sin(t * .8) * .1); explodeProp(P, e, t, true); });
+}
+
+// ── Things he gives off: little sprites spawned from real points on his moving surface ──
+// Each glyph is drawn white with a dark outline, so one texture can be tinted any colour.
+const glyph = (draw) => canvasTex(128, 128, (g) => { g.translate(64, 64); g.fillStyle = '#fff'; g.strokeStyle = 'rgba(25,12,50,.9)'; g.lineWidth = 8; g.lineJoin = g.lineCap = 'round'; draw(g); });
+const both = (g, path) => { const P = new Path2D(path); g.stroke(P); g.fill(P); };
+const TEX = {
+	note: glyph((g) => { g.rotate(.12); both(g, 'M-6 22 A18 13 -25 1 1 -6 21.9 Z M6 18 L6 -46 L12 -46 C14 -30 34 -26 30 -8 C26 -22 18 -24 12 -24 L12 18 Z'); }),
+	notes: glyph((g) => { both(g, 'M-34 30 A15 11 -25 1 1 -34 29.9 Z M18 22 A15 11 -25 1 1 18 21.9 Z M-24 26 L-24 -36 L28 -48 L28 18 L22 18 L22 -32 L-18 -22 L-18 26 Z'); }),
+	heart: glyph((g) => { g.scale(1.25, 1.25); both(g, 'M0 30 C-52 0 -38 -42 0 -18 C38 -42 52 0 0 30 Z'); }),
+	spark: glyph((g) => { both(g, 'M0 -54 Q9 -9 54 0 Q9 9 0 54 Q-9 9 -54 0 Q-9 -9 0 -54 Z'); }),
+	drop: glyph((g) => { both(g, 'M0 -48 C24 -12 34 6 34 20 A34 34 0 0 1 -34 20 C-34 6 -24 -12 0 -48 Z'); }),
+	z: glyph((g) => { g.font = '900 96px ui-sans-serif, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeText('Z', 0, 4); g.fillText('Z', 0, 4); }),
+	bat: glyph((g) => { g.fillStyle = '#2a1840'; g.strokeStyle = '#c9a8ff'; g.lineWidth = 5; both(g, 'M0 -10 C10 -22 22 -26 34 -20 C40 -30 52 -30 58 -22 C50 -18 50 -8 56 2 C46 -2 38 2 34 12 C26 4 14 6 6 14 L0 20 L-6 14 C-14 6 -26 4 -34 12 C-38 2 -46 -2 -56 2 C-50 -8 -50 -18 -58 -22 C-52 -30 -40 -30 -34 -20 C-22 -26 -10 -22 0 -10 Z'); g.fillStyle = '#ffd36e'; g.beginPath(); g.arc(-5, -2, 3, 0, 7); g.arc(5, -2, 3, 0, 7); g.fill(); }),
+	candy: glyph((g) => { both(g, 'M-24 0 L-52 -22 L-50 22 Z M24 0 L52 -22 L50 22 Z'); both(g, 'M-26 0 A26 22 0 1 1 26 0 A26 22 0 1 1 -26 0 Z'); g.strokeStyle = 'rgba(25,12,50,.45)'; g.lineWidth = 5; for (const x of [-10, 4, 18]) { g.beginPath(); g.moveTo(x - 6, -20); g.lineTo(x + 6, 20); g.stroke(); } }),
+	flake: glyph((g) => { g.strokeStyle = '#fff'; g.lineWidth = 7; for (let k = 0; k < 6; k++) { g.save(); g.rotate(k * Math.PI / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -50); g.moveTo(0, -30); g.lineTo(-12, -42); g.moveTo(0, -30); g.lineTo(12, -42); g.stroke(); g.restore(); } }),
+	pizza: canvasTex(128, 128, (g) => { g.translate(64, 64); g.lineJoin = 'round'; g.strokeStyle = 'rgba(25,12,50,.9)'; g.lineWidth = 7; const P = new Path2D('M0 50 L-40 -34 Q0 -52 40 -34 Z'); g.fillStyle = '#ffcc4d'; g.fill(P); g.stroke(P); g.fillStyle = '#d98a3a'; g.beginPath(); g.moveTo(-42, -30); g.quadraticCurveTo(0, -56, 42, -30); g.lineTo(38, -40); g.quadraticCurveTo(0, -64, -38, -40); g.fill(); g.fillStyle = '#e0443c'; for (const [x, y] of [[-12, -18], [12, -10], [0, 14]]) { g.beginPath(); g.arc(x, y, 8, 0, 7); g.fill(); } }),
+	donut: canvasTex(128, 128, (g) => { g.translate(64, 64); g.strokeStyle = 'rgba(25,12,50,.9)'; g.lineWidth = 7; g.fillStyle = '#d9a066'; g.beginPath(); g.arc(0, 0, 46, 0, 7); g.arc(0, 0, 15, 0, 7, true); g.fill('evenodd'); g.stroke(); g.fillStyle = '#ff7ab8'; g.beginPath(); g.arc(0, 0, 38, 0, 7); g.arc(0, 0, 19, 0, 7, true); g.fill('evenodd'); for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 27 + (k % 3) * 4; g.fillStyle = ['#fff', '#8ff4f7', '#ffd36e'][k % 3]; g.save(); g.translate(Math.cos(a) * r, Math.sin(a) * r); g.rotate(a * 2); g.fillRect(-5, -1.5, 10, 3); g.restore(); } }),
+	cookie: canvasTex(128, 128, (g) => { g.translate(64, 64); g.strokeStyle = 'rgba(25,12,50,.9)'; g.lineWidth = 7; g.fillStyle = '#d9a35f'; g.beginPath(); g.arc(0, 0, 46, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#5a3418'; for (const [x, y] of [[-18, -14], [14, -20], [20, 10], [-8, 18], [-24, 8], [4, -2]]) { g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); } }),
+	puff: glyph((g) => { g.strokeStyle = 'rgba(80,90,130,.5)'; g.lineWidth = 5; both(g, 'M-40 14 A20 20 0 0 1 -30 -14 A24 24 0 0 1 10 -26 A22 22 0 0 1 42 -6 A18 18 0 0 1 36 22 Z'); }),
+	q: glyph((g) => { g.font = '900 100px ui-sans-serif, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeText('?', 0, 4); g.fillText('?', 0, 4); }),
+};
+// Where on him things come from, as lists of vertices (front copies 0..NP-1, back copies NP..)
+const REGIONS = { tip: [], top: [], face: [], brow: [], around: [], bottom: [], mouth: [] };
+for (let i = 0; i < NP; i++) {
+	const [x, y] = pts[i];
+	if (y < 75 && x > 235) REGIONS.tip.push(i);
+	if (y < 150) REGIONS.top.push(i, i + NP);
+	if (i >= NE && y > 230 && y < 420 && x > 110 && x < 430) REGIONS.face.push(i);
+	if (i < NE && ((x < 130 && y > 140 && y < 240) || (x > 380 && y > 110 && y < 210))) REGIONS.brow.push(i);
+	REGIONS.around.push(i, i + NP);
+	if (i < NE && y > 400) REGIONS.bottom.push(i);
+	if (i >= NE && Math.hypot(x - 262, y - 404) < 25) REGIONS.mouth.push(i);
+}
+const EXUDES = {
+	notes: { label: 'Music notes', tex: ['note', 'notes'], from: 'tip', rate: 2.6, life: 2.6, size: .34, up: .55, side: .35, out: .1, grav: 0, wob: .9, spin: .5, tint: ['#ffd36e', '#ff6ad5', '#8ff4f7', '#b5ffc9', '#ffffff'] },
+	hearts: { label: 'Hearts', tex: ['heart'], from: 'face', rate: 2.2, life: 2.2, size: .32, up: .5, side: .3, out: .35, grav: 0, wob: .5, spin: .15, tint: ['#ff6b8b', '#ff9ec4', '#fd3d6b'], pop: true },
+	sparkles: { label: 'Sparkles', tex: ['spark'], from: 'around', rate: 8, life: 1.1, size: .2, up: .12, side: .05, out: .25, grav: 0, wob: 0, spin: 1.5, tint: ['#fff6c8', '#ffd36e', '#8ff4f7', '#ffffff'], twinkle: true },
+	zzz: { label: 'Zzz', tex: ['z'], from: 'tip', rate: .9, life: 2.8, size: .26, up: .35, side: .3, out: .1, grav: 0, wob: .6, spin: .25, tint: ['#ffffff', '#c9c2ff'], grow: true },
+	sweat: { label: 'Sweat', tex: ['drop'], from: 'brow', rate: 2.2, life: 1.1, size: .17, up: .9, side: 0, out: .9, grav: -3.2, wob: 0, spin: 0, tint: ['#8fd8ff', '#bfeaff'] },
+	bats: { label: 'Bats', tex: ['bat'], from: 'top', rate: 1.6, life: 2.4, size: .38, up: .7, side: 1.1, out: .3, grav: 0, wob: 1.6, spin: .25, tint: ['#ffffff'], flap: true },
+	candy: { label: 'Candy', tex: ['candy'], from: 'around', rate: 1.6, life: 1.8, size: .26, up: 1.3, side: .7, out: .6, grav: -1.8, wob: 0, spin: 2.5, tint: ['#f08a24', '#a774ff', '#9be15d', '#ff6ad5'] },
+	drips: { label: 'Drips', tex: ['drop'], from: 'bottom', rate: 3, life: 1.2, size: .15, up: -.1, side: .05, out: .15, grav: -2.4, wob: 0, spin: 0, tint: ['body'], hidden: true },
+	munchies: { label: 'Munchies', tex: ['pizza', 'donut', 'cookie'], from: 'top', rate: 1.2, life: 2.2, size: .36, up: .45, side: .6, out: .2, grav: 0, wob: .4, spin: .6, tint: ['#ffffff'], pop: true },
+	jointSmoke: { label: 'Joint smoke', tex: ['puff'], from: (out) => PROPS.joint.ember.getWorldPosition(out), rate: 3.5, life: 2.6, size: .16, up: .38, side: .12, out: 0, grav: 0, wob: .7, spin: .4, tint: ['#e8e4f0', '#cfc8de'], grow: true, hidden: true },
+	smoke: { label: 'Smoke', tex: ['puff'], from: 'around', rate: 3, life: 2.4, size: .3, up: .35, side: .25, out: .25, grav: 0, wob: .5, spin: .3, tint: ['#6b3fa0', '#4a2a73', '#8a3a7a'], grow: true },
+	sigh: { label: 'Sigh', tex: ['puff'], from: 'mouth', rate: 0, life: 1.6, size: .34, up: .15, side: .7, out: .4, grav: 0, wob: .2, spin: .2, tint: ['#ffffff'], grow: true, hidden: true },
+	puzzled: { label: 'Question marks', tex: ['q'], from: 'top', rate: 1, life: 1.8, size: .32, up: .45, side: .2, out: .15, grav: 0, wob: .4, spin: .3, tint: ['#8ff4f7', '#ffffff'], pop: true },
+};
+for (const E of Object.values(EXUDES)) { E.on = false; E.acc = 0; }
+const live = [], pool = [];
+const _w = new THREE.Vector3(), _n = new THREE.Vector3();
+const spawn = (E) => {
+	if (typeof E.from === 'function') { E.from(_w); _n.set(0, 1, 0); } else {
+	const list = REGIONS[E.from], v = list[Math.floor(Math.random() * list.length)];
+	const a = bodyGeo.attributes.position.array, nn = bodyGeo.attributes.normal.array;
+	_w.set(a[v * 3], a[v * 3 + 1], a[v * 3 + 2]); _n.set(nn[v * 3], nn[v * 3 + 1], nn[v * 3 + 2]).normalize();
+	spinner.localToWorld(_w); _n.transformDirection(spinner.matrixWorld); }
+	const sp = pool.pop() || new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+	sp.material.map = TEX[E.tex[Math.floor(Math.random() * E.tex.length)]];
+	const tint = E.tint[Math.floor(Math.random() * E.tint.length)];
+	if (tint === 'body') sp.material.color.copy(LOOKS[look].body.color); else sp.material.color.set(tint);
+	sp.material.needsUpdate = true;
+	sp.position.copy(_w).addScaledVector(_n, .06);
+	const side = (Math.random() - .5) * 2 * E.side;
+	sp.userData = { E, age: 0, ph: Math.random() * 6.28, vel: new THREE.Vector3(side + _n.x * E.out, E.up + Math.random() * .2 + _n.y * E.out * .5, _n.z * E.out + .05), dir: Math.random() < .5 ? -1 : 1 };
+	scene.add(sp); live.push(sp);
+};
+const updateExudes = (dt) => {
+	for (const E of Object.values(EXUDES)) { if (!(E.on || E.synaes) || reduced) continue; E.acc += E.rate * dt; while (E.acc >= 1) { E.acc -= 1; spawn(E); } }
+	for (let i = live.length - 1; i >= 0; i--) {
+		const sp = live[i], U = sp.userData, E = U.E;
+		U.age += dt;
+		const f = U.age / E.life;
+		if (f >= 1) { scene.remove(sp); live.splice(i, 1); pool.push(sp); continue; }
+		U.vel.y += E.grav * dt;
+		sp.position.addScaledVector(U.vel, dt);
+		sp.position.x += Math.cos(U.age * 3 + U.ph) * E.wob * dt;
+		let sc = E.size;
+		if (E.pop) sc *= U.age < .15 ? (U.age / .15) * 1.25 : 1.25 - Math.min(.25, (U.age - .15) * 1.2);
+		if (E.twinkle) sc *= .55 + .45 * Math.abs(Math.sin(U.age * 9 + U.ph));
+		if (E.grow) sc *= .6 + f * .8;
+		if (E.flap) { sp.scale.set(sc * (.35 + .65 * Math.abs(Math.sin(U.age * 16 + U.ph))), sc * .7, 1); } else
+		sp.scale.setScalar(sc);
+		sp.material.rotation = Math.sin(U.age * 2 + U.ph) * E.spin * U.dir;
+		sp.material.opacity = Math.min(1, U.age / .12) * (f > .65 ? 1 - (f - .65) / .35 : 1);
+	}
+};
+
+// Halloween moon, a separate crisp object far behind him
+const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(256, 256, (g) => { const m = g.createRadialGradient(128, 128, 0, 128, 128, 128); m.addColorStop(0, '#fff3cf'); m.addColorStop(.42, '#ffdd92'); m.addColorStop(.47, 'rgba(255,200,120,.35)'); m.addColorStop(1, 'rgba(255,170,90,0)'); g.fillStyle = m; g.fillRect(0, 0, 256, 256); g.fillStyle = 'rgba(214,160,90,.35)'; for (const [x, y, r] of [[105, 110, 12], [150, 140, 9], [120, 155, 6], [140, 100, 5]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } }), depthWrite: false }));
+moon.position.set(-3.6, 3.4, -12); moon.scale.setScalar(2.6); moon.visible = false; scene.add(moon);
+// Snowfall for Christmas: flakes drifting down through the whole scene, wrapping back to the top
+const SNOW = 240, snowPos = new Float32Array(SNOW * 3), snowGeo = new THREE.BufferGeometry();
+for (let k = 0; k < SNOW; k++) snowPos.set([(Math.random() - .5) * 10, Math.random() * 6 - 2, Math.random() * 5 - 3], k * 3);
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ map: TEX.flake, size: .16, transparent: true, depthWrite: false, opacity: .9 }));
+snow.visible = false; snow.frustumCulled = false; scene.add(snow);
+const updateSnow = (dt, t) => { if (!snow.visible) return; for (let k = 0; k < SNOW; k++) { let y = snowPos[k * 3 + 1] - dt * (.35 + (k % 7) * .05); if (y < -1.4) y += 6; snowPos[k * 3 + 1] = y; snowPos[k * 3] += Math.sin(t * .8 + k) * dt * .12; } snowGeo.attributes.position.needsUpdate = true; };
+
+// ── The DMT journey: keyframes for each stage (after QRI's account: threshold, chrysanthemum, magic eye,
+// waiting room, breakthrough), then the return. [ms, pattern, spread, room, deconstruct, hyperbolic, saturation] ──
+const DMT_KEYS = [
+	[0, 0, 0, 0, 0, 0, 1],
+	[1500, .15, .5, 0, 0, 0, 1.45],
+	[4000, 1, 3.5, .45, .05, 0, 1.6],
+	[6000, 1, 3.5, 1, .22, .2, 1.6],
+	[9000, 1, 3.5, .5, 1, 1, 1.7],
+	[12500, 1, 3.5, .35, 1, 1, 1.7],
+	[15500, .3, 3.5, 0, 0, 0, 1.2],
+	[17500, 0, 0, 0, 0, 0, 1],
+];
+let dmt = 0, dmtSaid = 0;
+const dmtAt = (ms) => {
+	let i = 0; while (i < DMT_KEYS.length - 2 && DMT_KEYS[i + 1][0] <= ms) i++;
+	const A = DMT_KEYS[i], B = DMT_KEYS[i + 1], f = clamp((ms - A[0]) / (B[0] - A[0]), 0, 1), u = f * f * (3 - 2 * f), L = (k) => A[k] + (B[k] - A[k]) * u;
+	return { pat: L(1), reveal: L(2), room: L(3), shatter: L(4), hyper: L(5), sat: L(6) };
+};
+const startDmt = () => { if (dmt) return; dmt = performance.now(); dmtSaid = 0; say('Uh oh—'); };
+const bench = { pat: 0, shatter: 0, hyper: 0 };
+const faceXform = [1024 / 500, 0, 0, 1024 / 500, 0, 0];
+
+const circ = (cx, cy, r) => `M${cx - r} ${cy} a${r} ${r} 0 1 0 ${2 * r} 0 a${r} ${r} 0 1 0 ${-2 * r} 0 Z`;
+// Lid aperture: the eye never changes shape; an upper and a lower lid cover it. ang > 0 = inner corner down (cross), < 0 = sad.
+const lids = (cx, cy, r, t, ang, b, c, si) => {
+	// The upper lid's edge bows upward like a real eyelid over a round eye; ang > 0 = inner corner down (cross), < 0 = sad.
+	// The lower lid sits in a soft ∪ by default, and "curve" pushes it up into a smile.
+	const W = r * 1.3, k = Math.tan(clamp(ang, -35, 35) * Math.PI / 180) * si;
+	const top = cy - r * 1.25 + clamp(t, 0, 1.1) * r * 2.5, bow = r * .32;
+	const bot = cy + r * 1.2 - clamp(b, 0, 1) * r * 1.5, lift = c * r * 1.1 - r * .12 * (1 - clamp(c, 0, 1));
+	const lo = (s) => bot - lift * (1 - s * s), up = (s) => Math.min(top + k * W * s - bow * (1 - s * s), lo(s));
+	const S = Array.from({ length: 17 }, (_, i) => -1 + i / 8), P = (f) => S.map((s) => `${(cx + W * s).toFixed(1)} ${f(s).toFixed(1)}`);
+	const ap = 'M' + P(up).join(' L') + ' L' + P(lo).reverse().join(' L') + ' Z';
+	const lash = 'M' + S.filter((s) => Math.abs(s) <= .74).map((s) => `${(cx + W * s).toFixed(1)} ${up(s).toFixed(1)}`).join(' L');
+	return { ap, lash, upEdge: 'M' + P(up).join(' L'), loEdge: 'M' + P(lo).join(' L'), upOn: clamp((t - .01) * 8 + Math.abs(ang) / 6, 0, 1), loOn: clamp((b - .02) * 8, 0, 1), closed: 1 - clamp((lo(0) - up(0)) / (r * .38), 0, 1) };
+};
+const altShape = (kind, cx, cy, r, a, t) => {
+	const h = r * a;
+	if (kind === 'heart') return { d: `M${cx} ${cy + .75 * h} C${cx - 1.15 * h} ${cy + .05 * h} ${cx - .8 * h} ${cy - .95 * h} ${cx} ${cy - .4 * h} C${cx + .8 * h} ${cy - .95 * h} ${cx + 1.15 * h} ${cy + .05 * h} ${cx} ${cy + .75 * h} Z`, fill: '#fd6c87' };
+	if (kind === 'star') return { d: 'M' + Array.from({ length: 10 }, (_, i) => { const q = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? h * .42 : h * .95; return `${(cx + Math.cos(q) * rr).toFixed(1)} ${(cy + Math.sin(q) * rr).toFixed(1)}`; }).join(' L') + ' Z', fill: '#ffd36e', stroke: '#000', sw: 7 * r / 86 };
+	if (kind === 'x') return { d: `M${cx - .5 * h} ${cy - .5 * h} L${cx + .5 * h} ${cy + .5 * h} M${cx + .5 * h} ${cy - .5 * h} L${cx - .5 * h} ${cy + .5 * h}`, stroke: '#000', sw: 16 * r / 86 };
+	if (kind === 'spiral') return { d: 'M' + Array.from({ length: 48 }, (_, i) => { const u = i / 47, q = u * Math.PI * 4.5 + t * 6, rr = h * (.08 + u * .78); return `${(cx + Math.cos(q) * rr).toFixed(1)} ${(cy + Math.sin(q) * rr).toFixed(1)}`; }).join(' L'), stroke: '#000', sw: 11 * r / 86 };
+	if (kind === 'arc') return { d: `M${cx - .7 * h} ${cy + .2 * h} Q${cx} ${cy - .8 * h} ${cx + .7 * h} ${cy + .2 * h}`, stroke: '#000', sw: 15 * r / 86 };
+	return { d: circ(cx, cy, h * .3), fill: '#000' };
+};
+// The face texture is big and costly to upload, so it's only redrawn when the face actually changed (or a quarter
+// second has passed, for anything animated in it).
+let faceSig = '', faceDrawnAt = 0;
+const drawFace = (p, t) => {
+	const sig = Object.values(p).map((v) => (typeof v === 'number' ? v.toFixed(2) : String(v))).join('|');
+	if (sig === faceSig && t - faceDrawnAt < .25) return;
+	faceSig = sig; faceDrawnAt = t;
+	const g = fctx;
+	g.setTransform(1, 0, 0, 1, 0, 0);
+	g.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+	g.setTransform(...faceXform);
+	g.lineCap = g.lineJoin = 'round';
+	// Blush
+	if (p.blush > .02) { g.globalAlpha = clamp(p.blush, 0, 1) * .65; g.fillStyle = '#ff8fb0'; g.beginPath(); g.ellipse(128, 388, 34, 22, 0, 0, 7); g.ellipse(418, 362, 26, 18, 0, 0, 7); g.fill(); g.globalAlpha = 1; }
+	const u = p.unfocus, alt = clamp(p.alt, 0, 1.35);
+	const eyesHidden = PROPS.shades.on && !dealAt; // behind the shades (once they've landed) the eyes would only peek out
+	[[185 + p.lookX * .3 - u * 14, 300 + p.lookY * .3 - u * 10, 86 * p.size * p.sizeL, 70, 1, 'L'], [357 + p.lookX * .3 + u * 12, 268 + p.lookY * .3 + u * 12, 64 * p.size * p.sizeR, 49, -1, 'R']].forEach(([cx, cy, r, rr, si, S]) => {
+		const tt = p['lidT' + S] + (1.08 - p['lidT' + S]) * p.blink;
+		const L = lids(cx, cy, r, tt, p['ang' + S], p['lidB' + S], p['curve' + S], si);
+		const on = eyesHidden ? 0 : 1 - clamp(alt * 1.6, 0, 1);
+		if (on > .01) {
+			g.globalAlpha = on;
+			g.save(); g.clip(new Path2D(L.ap));
+			if (glowEyes) { const gr = g.createRadialGradient(cx, cy + r * .25, r * .05, cx, cy, r); gr.addColorStop(0, '#fff4b8'); gr.addColorStop(.45, '#ffb22e'); gr.addColorStop(1, '#b8380a'); g.fillStyle = gr; } else g.fillStyle = '#000';
+			g.fill(new Path2D(circ(cx, cy, r)));
+			const red = clamp(p.stoned, 0, 1);
+			if (red > .02) { const gl = g.createRadialGradient(cx, cy, r * .5, cx, cy, r); gl.addColorStop(0, 'rgba(255,40,70,0)'); gl.addColorStop(1, `rgba(255,50,80,${.65 * red})`); g.fillStyle = gl; g.fill(new Path2D(circ(cx, cy, r))); }
+			const sc = r / (S === 'L' ? 86 : 64), ox = cx + p.lookX * .45 * sc, oy = cy + p.lookY * .45 * sc;
+			g.strokeStyle = glowEyes ? 'rgba(90,25,0,.55)' : redEyes ? '#ff2a3a' : p.stoned > .5 ? '#ff7a88' : p.pink ? '#ff9db3' : '#fff'; g.lineWidth = (S === 'L' ? 9 : 8) * sc; g.stroke(new Path2D(circ(ox, oy, rr * sc * p.size * p.ring)));
+			if (p.glint > .02) { g.globalAlpha = on * clamp(p.glint, 0, 1); g.fillStyle = redEyes ? '#ffb3b9' : '#fff'; g.beginPath(); g.arc(cx - .3 * r, cy - .35 * r, (S === 'L' ? 14 : 11) * sc, 0, 7); g.fill(); }
+			g.restore();
+			// Lid rims: a darker shade of his skin along each lid edge, only where it crosses the eye
+			if ((L.upOn > .02 || L.loOn > .02) && L.closed < .98) { g.save(); g.clip(new Path2D(circ(cx, cy, r + 2))); g.strokeStyle = lidColor; g.lineWidth = 10 * r / 86; if (L.upOn > .02) { g.globalAlpha = on * L.upOn; g.stroke(new Path2D(L.upEdge)); } if (L.loOn > .02) { g.globalAlpha = on * L.loOn; g.stroke(new Path2D(L.loEdge)); } g.restore(); }
+			// A closed eye is an eyelid crease in a darker shade of his skin, never a black line
+			if (L.closed > .02) { g.globalAlpha = on * L.closed; g.strokeStyle = lidColor; g.lineWidth = 12 * r / 86; g.stroke(new Path2D(L.lash)); }
+		}
+		if (alt > .02 && p.kind !== 'normal' && !eyesHidden) {
+			const A = altShape(p.kind, cx, cy, r, alt, t);
+			g.globalAlpha = clamp(alt * 3, 0, 1);
+			const path = new Path2D(A.d);
+			if (A.fill) { g.fillStyle = A.fill; g.fill(path); }
+			if (A.stroke) { g.strokeStyle = A.stroke; g.lineWidth = A.sw; g.stroke(path); }
+		}
+		g.globalAlpha = 1;
+	});
+	// Mouth
+	if (p.mouth < .02) { faceTex.needsUpdate = true; return; } // content Spunion has no mouth
+	g.globalAlpha = clamp(p.mouth, 0, 1);
+	const mx = 262 + p.lookX * .35, my = 404 + p.lookY * .25, mw = Math.max(4, p.mW * clamp(p.mouth, 0, 1)), mo = Math.max(0, p.mO) * 18, mc = p.mC;
+	const m = new Path2D(`M${mx - mw} ${my} Q${mx} ${my + mc - mo} ${mx + mw} ${my} Q${mx} ${my + mc + mo * 1.6} ${mx - mw} ${my} Z`);
+	g.fillStyle = glowEyes ? '#ffb22e' : '#1a1a1a'; g.strokeStyle = glowEyes ? '#6a1d00' : '#000'; g.lineWidth = 12; g.fill(m); g.stroke(m);
+	g.globalAlpha = 1;
+	faceTex.needsUpdate = true;
+};
+
+// ── Springs (same as the Lab), with firm no-bounce springs for lids and eyes ──
+const P0 = { sx: 1, sy: 1, ty: 0, tx: 0, rot: 0, slump: 0, tall: 0, curl: 0, curlSag: 0, ripple: 0, funnel: 0, twist: 0, lidTL: 0, lidTR: 0, angL: 0, angR: 0, lidBL: 0, lidBR: 0, curveL: 0, curveR: 0, alt: 0, size: 1, sizeL: 1, sizeR: 1, lookX: 0, lookY: 0, unfocus: 0, ring: 1, blush: 0, glint: 0, mW: 14, mC: 5, mO: 0, mouth: 0, frown: 0, ribs: 0, tuck: 0, sick: 0, melt: 0, stoned: 0 };
+const pose = { ...P0, blink: 0, kind: 'normal', pink: 0 }, vel = Object.fromEntries(Object.keys(P0).map((k) => [k, 0]));
+let target = { ...P0 };
+const STIFF = { default: 120, curl: 70, slump: 50, tall: 60, lookX: 160, lookY: 160, blush: 40, alt: 220, funnel: 170, twist: 110 };
+const DAMP = { default: 14, curl: 7, slump: 11, alt: 13 };
+for (const k of ['lidTL', 'lidTR', 'angL', 'angR', 'lidBL', 'lidBR', 'curveL', 'curveR']) { STIFF[k] = 260; DAMP[k] = 32; }
+const spring = (dt) => { for (const k in P0) { const st = STIFF[k] ?? STIFF.default, dm = DAMP[k] ?? DAMP.default; vel[k] += (st * (target[k] - pose[k]) - dm * vel[k]) * dt; pose[k] += vel[k] * dt; } };
+
+// Both-eye shorthand: lidT/ang/lidB/curve set both eyes; lidTL etc. set one.
+const EY = (o) => { const r = {}; if ('mW' in o || 'mC' in o || 'mO' in o) r.mouth = 1; for (const [k, v] of Object.entries(o)) { if (['lidT', 'ang', 'lidB', 'curve'].includes(k)) { r[k + 'L'] ??= v; r[k + 'R'] ??= v; } else r[k] = v; } return r; };
+// How fast he breathes when breathing shows (quick and shallow in a panic).
+let breathRate = 1.4;
+const FEELS = Object.fromEntries(Object.entries({
+	content: {},
+	happy: { mW: 24, mC: 14, frown: -.35, lidB: .35, curve: .9, curl: -12, blush: .7, sy: 1.02, sx: .99 },
+	delighted: { mW: 22, mC: 12, mO: .6, frown: -.3, size: 1.12, glint: 1, lidB: .12, curve: .5, curl: -25, tall: .35, blush: .6 },
+	laughing: { mW: 26, mC: 14, mO: .85, frown: -.6, lidB: .5, curve: 1, curl: -18, blush: .8, slump: .1 },
+	surprised: { mW: 12, mC: 0, mO: 1, size: 1.2, tall: .6, curl: -40, ring: .7 },
+	wired: { size: 1.14, ring: .4, lidTL: -.04 },
+	shy: { mW: 10, mC: 6, lookX: -16, lookY: 10, lidT: .25, lidB: .25, curve: .5, blush: 1, curl: 18, rot: -4 },
+	curious: { mW: 9, mC: 0, mO: .35, sizeR: 1.12, lidTL: .16, angL: 6, lookX: 10, curl: -20, rot: 5 },
+	worried: { mW: 14, mC: -6, mO: .25, frown: .35, lidT: .05, ang: -16, size: 1.05, curl: 40, curlSag: .4, sx: .97, sy: 1.02 },
+	sad: { mW: 16, mC: -11, frown: 1, lidT: .28, ang: -15, lidB: .08, lookY: 16, slump: .35, curl: 50, curlSag: .8, size: .92 },
+	sleepy: { mW: 9, mC: 2, mO: .2, lidT: .64, ang: -6, slump: .3, curl: 45, curlSag: .6, rot: 5 },
+	smug: { mW: 20, mC: 9, lidT: .48, ang: 6, lidB: .2, curve: .4, lookX: 12, lookY: -4, curl: -10, rot: 4 },
+	grumpy: { mW: 16, mC: -8, frown: .45, lidT: .4, ang: 20, lidB: .1, slump: .2, curl: 30, sx: 1.04, sy: .96 },
+	'in love': { mW: 20, mC: 12, eye: 'heart', size: 1.06, blush: 1, curl: -20 },
+	starstruck: { mW: 22, mC: 12, mO: .7, eye: 'star', size: 1.1, tall: .4, curl: -35, blush: .5 },
+	dizzy: { mW: 16, mC: -3, mO: .3, eye: 'spiral', rot: -6 },
+	stoned: { mW: 13, mC: 6, mO: .1, lidT: .46, ang: -4, lidB: .18, curve: .35, slump: .12, blush: .25, curl: 18, curlSag: .3, stoned: 1 },
+	evil: { mW: 30, mC: 17, mO: .3, lidT: .34, ang: 28, lidB: .2, curve: -.25, frown: -.2, glint: 1, curl: -20, rot: 3 },
+	'knocked out': { mW: 16, mC: -4, mO: .4, eye: 'x', slump: .4, curl: 60, curlSag: 1, rot: 8 },
+	sick: { mW: 11, mC: -5, mO: .15, lidT: .3, ang: -12, lidB: .1, lookY: 8, frown: .35, sick: 1, curl: 35, curlSag: .5, sx: 1.03, sy: .98 },
+	relieved: { mW: 15, mC: 6, mO: .25, lidT: .62, ang: -6, lidB: .2, curve: .6, slump: .12, blush: .35, curl: 10, frown: -.15 },
+}).map(([k, v]) => [k, EY(v)]));
+let baseFeel = 'content';
+
+const ACTS = Object.fromEntries(Object.entries({
+	hop: [[0, { sy: .82, sx: 1.12 }], [180, { ty: -34, sy: 1.12, sx: .9, curl: 30 }], [420, { ty: 0, sy: .86, sx: 1.1 }], [560, { ty: -12, sy: 1.03 }], [700, {}]],
+	squish: [[0, { sy: .82, sx: 1.16 }], [220, { sy: 1.1, sx: .92 }], [420, {}]],
+	wobble: [[0, { rot: -9 }], [200, { rot: 8 }], [400, { rot: -4 }], [600, {}]],
+	wag: [[0, { curl: -35 }], [150, { curl: 25 }], [300, { curl: -30 }], [450, { curl: 20 }], [600, {}]],
+	dance: [[0, { rot: -8, ty: -4, curl: -30 }], [200, { rot: 0, ty: 0 }], [400, { rot: 8, ty: -4, curl: 30 }], [600, { rot: 0, ty: 0 }], [800, { rot: -8, ty: -4, curl: -30 }], [1000, { rot: 8, ty: -4, curl: 30 }], [1200, {}]],
+	melt: [[0, { slump: 1, curl: 60, curlSag: 1, lidT: .45 }], [1800, {}]],
+	boing: [[0, { tall: 1.2, curl: -60 }], [300, { slump: .5 }], [600, {}]],
+	'evil laugh': [[0, { mW: 30, mC: 14, mO: 1, lidT: .4, ang: 28, lidB: .3, tall: .2, rot: -4 }], [140, { ty: -5, rot: 3 }], [280, { ty: 0, rot: -3 }], [420, { ty: -5, rot: 3 }], [560, { ty: 0, rot: -3 }], [700, { ty: -5, rot: 2 }], [840, { ty: 0, rot: -2 }], [980, { ty: -4 }], [1200, {}]],
+	boop: [[0, { sy: .85, sx: 1.14, lidB: .4, curve: 1, curl: 30, mO: .7, mW: 20, mC: 12 }], [250, { sy: 1.06, sx: .95 }], [500, {}]],
+}).map(([k, v]) => [k, v.map(([t, n]) => [t, EY(n)])]));
+let actNudge = {}, acting = false;
+const playAct = (name) => {
+	if (reduced || acting || taz) return;
+	acting = true;
+	const steps = ACTS[name];
+	steps.forEach(([at, nudge], i) => setTimeout(() => { actNudge = { ...nudge }; if (i === steps.length - 1) setTimeout(() => (acting = false), 200); }, at * 1.1));
+};
+
+// ── The Taz spin: wind up, tornado, travel, slow down, land facing front, dizzy ──
+let taz = 0, spinAngle = 0, spinVel = 0, spinGoal = 0, dizzyUntil = 0, tazK = 0;
+const startTaz = () => { if (taz || reduced) return; taz = performance.now(); acting = false; actNudge = {}; say('Brrrrrrrraaaaaah!'); };
+
+// Dust and speed lines for the tornado
+const DUST = 90, dustGeo = new THREE.BufferGeometry(), dustPos = new Float32Array(DUST * 3);
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dustSeed = Array.from({ length: DUST }, () => [Math.random() * 7, .7 + Math.random() * .9, Math.random() * .5, 4 + Math.random() * 6]);
+const dustMat = new THREE.PointsMaterial({ color: '#d8c9a6', size: .09, transparent: true, opacity: 0, depthWrite: false });
+const dust = new THREE.Points(dustGeo, dustMat); group.add(dust);
+dust.frustumCulled = false;
+const swooshes = [.25, .7, 1.15, 1.55].map((y, i) => {
+	const m = new THREE.Mesh(new THREE.TorusGeometry(1.1 + i * .12, .014, 6, 48, 2.3), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, depthWrite: false }));
+	m.rotation.x = Math.PI / 2; m.position.y = y; group.add(m); return m;
+});
+
+// Ground shadow
+const shadowTex = (() => { const c = Object.assign(document.createElement('canvas'), { width: 128, height: 128 }), g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.005; scene.add(shadow);
+
+// ── Words ──
+let sayTimer = 0;
+const say = (text) => {
+	clearInterval(sayTimer);
+	const cap = $('#caption');
+	cap.innerHTML = text.split(/(\s+)/).map((w) => `<span class="w">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join('');
+	const spans = [...cap.children];
+	if (reduced) return spans.forEach((s) => s.classList.add('on'));
+	let i = 0;
+	sayTimer = setInterval(() => { for (let k = 0; k < 2 && i < spans.length; k++) spans[i++].classList.add('on'); if (i >= spans.length) clearInterval(sayTimer); }, 190);
+};
+
+// ── Pointer: he watches it; dragging turns him; a click boops ──
+let px = 0, py = 0, lastMove = 0, drag = null, dragTurn = 0, dragVel = 0;
+stage.addEventListener('pointermove', (e) => { px = e.clientX; py = e.clientY; lastMove = performance.now(); if (drag) { dragTurn = drag.turn + (e.clientX - drag.x) * .012; drag.moved = drag.moved || Math.abs(e.clientX - drag.x) > 4; } });
+stage.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, turn: dragTurn, moved: false }; stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointerup', () => { if (drag && !drag.moved) { playAct('boop'); } drag = null; });
+
+// ── Effects ──
+const fx = { ink: true, glasses: false, trails: false, choppy: false, melting: false, breathing: false, synaes: false, pareidolia: false };
+// ── Pareidolia: faint, ambiguous shapes drift into the room and, for a moment, read as faces ──
+const FACES = [
+	(g) => { g.fillStyle = 'rgba(255,255,255,.5)'; for (const [x, y, r] of [[-40, 10, 44], [10, -12, 54], [56, 14, 40], [0, 30, 46]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } g.fillStyle = 'rgba(0,0,0,.42)'; g.beginPath(); g.ellipse(-18, -6, 9, 14, 0, 0, 7); g.ellipse(26, -8, 8, 13, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = 6; g.beginPath(); g.arc(4, 30, 20, .3, Math.PI - .3); g.stroke(); },
+	(g) => { g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.roundRect(-70, -70, 140, 140, 30); g.fill(); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(-34, -38, 12, 40); g.fillRect(22, -38, 12, 40); g.beginPath(); g.arc(0, 34, 14, 0, 7); g.fill(); },
+	(g) => { g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.moveTo(-80, 20); g.lineTo(-50, -60); g.lineTo(20, -76); g.lineTo(78, -30); g.lineTo(70, 50); g.lineTo(-20, 72); g.closePath(); g.fill(); g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.arc(-22, -18, 12, 0, 7); g.arc(26, -22, 10, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 5; g.beginPath(); g.moveTo(-30, 34); g.lineTo(-8, 26); g.lineTo(10, 36); g.lineTo(32, 28); g.stroke(); },
+	(g) => { g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 5; for (let r = 20; r < 90; r += 14) { g.beginPath(); g.ellipse(0, 0, r * 1.2, r, 0, 0, 7); g.stroke(); } g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(-26, -14, 10, 8, 0, 0, 7); g.ellipse(26, -14, 10, 8, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 7; g.beginPath(); g.arc(0, 18, 34, .5, Math.PI - .5); g.stroke(); },
+].map((draw) => canvasTex(256, 256, (g) => { g.translate(128, 128); draw(g); }));
+const faces = [];
+let faceAt = 0;
+const updateFaces = (now) => {
+	if (fx.pareidolia && now > faceAt && faces.length < 6) {
+		faceAt = now + 900 + Math.random() * 1200;
+		const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: FACES[Math.floor(Math.random() * FACES.length)], transparent: true, depthWrite: false, opacity: 0 }));
+		const side = Math.random() < .5 ? -1 : 1;
+		sp.position.set(side * (1.6 + Math.random() * 2), -.4 + Math.random() * 3.2, -3 - Math.random() * 3); sp.scale.setScalar(1 + Math.random() * 1.2);
+		sp.material.color.setHSL(.72 + Math.random() * .1, .4, .8); sp.material.rotation = (Math.random() - .5) * .6;
+		sp.userData = { born: now, life: 3800 + Math.random() * 1500, drift: (Math.random() - .5) * .15 };
+		scene.add(sp); faces.push(sp);
+	}
+	for (let k = faces.length - 1; k >= 0; k--) {
+		const sp = faces[k], U = sp.userData, f = (now - U.born) / U.life;
+		if (f >= 1) { scene.remove(sp); faces.splice(k, 1); continue; }
+		sp.material.opacity = Math.min(1, f * 3, (1 - f) * 3) * .4; // faint: you're never quite sure it was a face
+		sp.position.x += U.drift * .016; sp.material.rotation += U.drift * .01;
+	}
+};
+// ── Animation sets: a motion loop paired with the effect it shows off best ──
+const SETS = {
+	flow: { label: 'Flow + tracers', fx: ['trails'], motion: 'flow' },
+	drift: { label: 'Drift + frame drop', fx: ['choppy'], motion: 'float' },
+	melt: { label: 'Wobble + melt', fx: ['melting'], motion: 'wobble' },
+	twirl: { label: 'Twirl + tracers', fx: ['trails'], motion: 'twirl' },
+	pulse: { label: 'Breathe + synaesthesia', fx: ['breathing', 'synaes'], motion: null },
+	faces: { label: 'Pareidolia', fx: ['pareidolia'], motion: 'nervous' },
+};
+const fxBtn = {};
+let activeSet = null, motion = null, twirl = 0, twirlVel = 0;
+const setFx = (k, v) => { fx[k] = v; if (fxBtn[k]) fxBtn[k].setAttribute('aria-pressed', String(v)); if (k === 'synaes' && !v && EXUDES.notes.forced) { EXUDES.notes.forced = false; EXUDES.notes.on = false; } };
+const runSet = (k) => {
+	if (activeSet) SETS[activeSet].fx.forEach((f) => setFx(f, false));
+	activeSet = activeSet === k ? null : k;
+	motion = activeSet ? SETS[activeSet].motion : null;
+	if (activeSet) SETS[activeSet].fx.forEach((f) => setFx(f, true));
+	[...$('#sets').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === activeSet)));
+};
+let sighAt = 0;
+const SICKLY = new THREE.Color('#8fd46a');
+// Synaesthesia: rings of colour pulse out from him on the beat, as if you could see the music
+const RINGS = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(new THREE.RingGeometry(.96, 1, 96), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); m.position.set(0, .05, -.6); m.visible = false; scene.add(m); return m; });
+
+// ── Blinking ──
+let blinkAt = performance.now() + 2500, doubled = false;
+const blinkVal = (now) => {
+	if (pose.alt > .1) return 0;
+	const e = now - blinkAt;
+	if (e < 0) return 0;
+	if (e < 60) return e / 60;
+	if (e < 100) return 1;
+	if (e < 230) return 1 - (e - 100) / 130;
+	if (!doubled && Math.random() < .18) { doubled = true; blinkAt = now + 120; } else { doubled = false; blinkAt = now + 2200 + Math.random() * 3800; }
+	return 0;
+};
+
+// ── Each frame ──
+let last = performance.now(), lastDrawT = 0, nextDraw = 0, glance = [0, 0], glanceAt = 0, idleAt = performance.now() + 6000;
+let lastDrawn = 0;
+const frame = (now) => {
+	requestAnimationFrame(frame);
+	// Embedded: about 30 frames a second is plenty for him, and halves the work.
+	if (EMBED && !dmt && now - lastDrawn < 31) return;
+	lastDrawn = now;
+	const dt = Math.min(.05, (now - last) / 1000); last = now;
+	const t = now / 1000;
+
+	// Taz phases
+	tazK = 0;
+	let wantSpin = 0;
+	if (taz) {
+		const e = now - taz;
+		if (e < 380) actNudge = EY({ sy: .78, sx: 1.16, rot: 14, curl: 45, lidT: .35, ang: 20, mW: 10, mC: -4 });
+		else if (e < 2500) { actNudge = EY({ mO: 1, mW: 18, mC: 0 }); tazK = clamp((e - 380) / 260, 0, 1); wantSpin = 30 * tazK; }
+		else if (e < 3200) { actNudge = {}; tazK = 1 - (e - 2500) / 700; wantSpin = 30 * tazK * tazK; }
+		else { taz = 0; dizzyUntil = now + 1700; say('Whoa… which way is up?'); }
+	}
+
+	// The trip: keyframed stage values, combined with the manual sliders
+	let J = { pat: 0, reveal: 0, room: 0, shatter: 0, hyper: 0, sat: 1 }, trip = '';
+	if (dmt) {
+		const e = now - dmt;
+		J = dmtAt(e);
+		trip = e < 9000 ? 'surprised' : e < 13000 ? 'starstruck' : e < 16500 ? 'dizzy' : '';
+		if (e > 6500 && dmtSaid < 1) { dmtSaid = 1; say('I met… everything.'); }
+		if (e > 16500 && dmtSaid < 2) { dmtSaid = 2; say('Wait, it’s been ten minutes?'); }
+		if (e > DMT_KEYS[DMT_KEYS.length - 1][0]) dmt = 0;
+	}
+	const lv = { pat: Math.max(J.pat, bench.pat), reveal: Math.max(J.reveal, bench.pat > .001 ? 3.5 : 0), room: J.room, shatter: Math.max(J.shatter, bench.shatter), hyper: Math.max(J.hyper, bench.hyper), sat: J.sat };
+
+	// Targets: feeling, then nudges, then loops
+	const feelName = now < dizzyUntil ? 'dizzy' : trip || (now < dealFace ? 'smug' : baseFeel);
+	const F = FEELS[feelName];
+	target = { ...P0, ...F };
+	delete target.eye;
+	if (now - glanceAt > 2600) { glanceAt = now; glance = [[0, 0], [-12, -5], [12, -3], [0, 7], [-8, 5]][Math.floor(Math.random() * 5)]; }
+	let headTurn = 0, headTilt = 0;
+	if (!F.lookX && !F.lookY) {
+		if (now - lastMove < 4000 && !drag) {
+			const r = renderer.domElement.getBoundingClientRect(), dx = px - (r.left + r.width * .5), dy = py - (r.top + r.height * .52), d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 260);
+			target.lookX = (dx / d) * 16 * k; target.lookY = (dy / d) * 13 * k;
+			// Embedded, he follows with his eyes only, like the 2D Spunion; turning his whole body reads oddly.
+			if (!EMBED) { headTurn = clamp(dx / r.width, -.5, .5) * .9; headTilt = clamp(dy / r.height, -.5, .5) * .35; }
+		} else { target.lookX = glance[0]; target.lookY = glance[1]; }
+	}
+	Object.assign(target, Object.fromEntries(Object.entries(actNudge).map(([k, v]) => [k, ['sx', 'sy', 'size'].includes(k) ? v * (target[k] || 1) : v])));
+	target.sy *= 1 + Math.sin(t * 1.6) * .012; target.sx *= 1 - Math.sin(t * 1.6) * .008; target.ripple = .1;
+	// Music: he swells gently with it (squash and stretch, never losing his shape).
+	if (beat) { target.sy *= 1 + beat * .07; target.sx *= 1 - beat * .03; }
+	if (now < dizzyUntil) { target.rot += Math.sin(t * 5) * 7; target.unfocus = .6; }
+	if (feelName === 'sick') { const heave = Math.max(0, Math.sin(t * 2.3)) ** 10; target.sy *= 1 - heave * .07; target.sx *= 1 + heave * .06; target.mO = .15 + heave * .55; target.mW = 11 - heave * 4; target.ty += heave * 3; target.rot += Math.sin(t * 1.1) * 3; }
+	if (motion === 'flow') { const w = t * 1.3; target.tx += Math.sin(w) * 44; target.rot += -Math.cos(w) * 9; target.curl += Math.sin(w - .7) * 28; target.lookX += Math.cos(w) * 10; }
+	if (motion === 'float') { target.ty -= 9 + Math.sin(t * .9) * 8; target.rot += Math.sin(t * .6) * 6; target.tx += Math.sin(t * .5) * 14; }
+	if (motion === 'wobble') { target.rot += Math.sin(t * 3) * 7; target.sx *= 1 + Math.sin(t * 6) * .04; target.sy *= 1 - Math.sin(t * 6) * .04; }
+	if (motion === 'nervous') { const k = Math.floor(t / .9); target.lookX = Math.sin(k * 12.9898) * 16; target.lookY = Math.cos(k * 78.233) * 9 - 3; target.tx += Math.sin(t * 40) * .6; }
+	if (feelName === 'stoned') { target.rot += Math.sin(t * .7) * 3.5; target.tx += Math.sin(t * .45) * 3; target.lookX += Math.sin(t * .3) * 6; }
+	if (feelName === 'relieved') { const br = Math.sin(t * 1.1); target.sy *= 1 + br * .03; target.sx *= 1 - br * .015; }
+	target.melt = fx.melting ? 1 : 0;
+	if (fx.breathing) { const br = Math.sin(t * breathRate); target.sy *= 1 + br * .05; target.sx *= 1 + br * .04; }
+	if ((EXUDES.notes.on || fx.synaes) && !taz) { const beat = t * Math.PI * 2 * 1.8; target.rot += Math.sin(beat / 2) * 5; target.ty -= Math.abs(Math.sin(beat / 2)) * 4; target.sy *= 1 - Math.abs(Math.cos(beat / 2)) * .03; }
+	target.ribs = look === 'pumpkin' ? 1 : 0;
+	target.tuck = ['hat', 'witch', 'santa', 'cap', 'horns'].some((h) => PROPS[h].on) ? 1 : 0;
+	target.funnel = tazK; target.twist = tazK * (2 + Math.sin(t * 9) * .9);
+	if (tazK) { target.tx = Math.sin((now - taz) / 1000 * 3.2) * 46; target.ty = -Math.abs(Math.sin((now - taz) / 1000 * 9)) * 4; target.curl = Math.sin(t * 20) * 40; }
+
+	// Eye shape swaps: shrink the current shape away before popping the next one in
+	const wantKind = F.eye || 'normal';
+	if (wantKind !== pose.kind && pose.alt > .06) target.alt = 0;
+	else { pose.kind = wantKind; target.alt = wantKind === 'normal' ? 0 : 1; }
+
+	spring(dt);
+	// The cowlick is hair: body motion kicks it, and its loose spring lets it lag and bounce
+	vel.curl += (vel.ty * .5 + vel.rot * .35 - vel.tx * .25 + spinVel * .8) * dt * 30;
+	pose.blink = blinkVal(now);
+
+	// Spin: driven while spinning, then a spring lands him facing front
+	// The landing spot is picked once, the next full turn ahead, so he always finishes facing you.
+	if (wantSpin > .5) { spinVel += (wantSpin - spinVel) * Math.min(1, dt * 5); spinAngle += spinVel * dt; spinGoal = Math.ceil((spinAngle + spinVel * .12) / (Math.PI * 2)) * Math.PI * 2; }
+	else if (spinAngle || spinVel) { spinVel += ((spinGoal - spinAngle) * 60 - spinVel * 11) * dt; spinAngle += spinVel * dt; if (Math.abs(spinGoal - spinAngle) < .002 && Math.abs(spinVel) < .02) { spinAngle = spinVel = spinGoal = 0; } }
+	if (!drag) { dragVel += (-dragTurn * 30 - dragVel * 8) * dt; dragTurn += dragVel * dt; }
+
+	// Idle life
+	if (!taz && !dmt && now > idleAt) { idleAt = now + 8000 + Math.random() * 6000; playAct(['squish', 'wobble', 'wag', 'hop'][Math.floor(Math.random() * 4)]); }
+
+	// Choppy frame rate: hold the picture, keep the springs running
+	if (fx.choppy && now < nextDraw) return;
+	nextDraw = now + 160 * (.8 + Math.random() * .4);
+
+	// Pose the 3D body
+	buildBody(pose, t);
+	if (look === 'onion') buildRoots(t);
+	drawFace(pose, t);
+	face.material.opacity = 1 - tazK * .8; // at full speed his face is a blur
+	// Deconstruction swaps the smooth body for its pieces (they start exactly where the body is, so the swap is invisible)
+	const broken = lv.shatter > .001;
+	if (broken) shatter(lv.shatter, t);
+	body.visible = face.visible = !broken; shards.visible = faceShards.visible = seams.visible = broken;
+	shards.material = LOOKS[look].shard;
+	seamMat.opacity = clamp(lv.shatter * 6, 0, 1) * .9; seamMat.color.setHSL((t * .12) % 1, .9, .7);
+	for (const P of Object.values(PROPS)) { P.g.visible = P.on; if (P.g.visible) P.update(P, t, lv.shatter); }
+	for (const h of inks) h.visible = fx.ink;
+	PAT.uPat.value = lv.pat; PAT.uReveal.value = lv.reveal; PAT.uTime.value = t;
+	roomMat.uniforms.uRoom.value = lv.room; roomMat.uniforms.uHyper.value = lv.hyper; roomMat.uniforms.uTime.value = t;
+	renderer.domElement.style.filter = lv.sat > 1.01 ? `saturate(${lv.sat.toFixed(2)})` : '';
+	camera.position.set(Math.sin(t * .3) * lv.hyper * .3, .55 * camK, (8.2 - lv.hyper * 1.1) * camK); camera.lookAt(0, .15, 0); camera.rotation.z += Math.sin(t * .4) * lv.hyper * .05;
+	// Jitters (stimulants): a fine, fast buzz layered on his pose; it never changes his shape.
+	const jx = jitter ? (Math.random() - .5) * .035 * jitter : 0, jy = jitter ? (Math.random() - .5) * .025 * jitter : 0;
+	group.position.set(pose.tx * .024 + jx + waterShow * 1.55, -1 - pose.ty * .024 + jy + waterShow * .35, -waterShow * .6);
+	{ const k = 1 - waterShow * .5; group.scale.set(k, k, (EMBED ? flatZ : 1) * k); }
+	group.rotation.z = -pose.rot * Math.PI / 180 + (jitter ? (Math.random() - .5) * .02 * jitter : 0);
+	if (motion === 'twirl') { twirlVel += (2.2 - twirlVel) * Math.min(1, dt * 2); twirl += twirlVel * dt; }
+	else if (twirl) { const goal = Math.ceil(twirl / (Math.PI * 2)) * Math.PI * 2; twirlVel += ((goal - twirl) * 30 - twirlVel * 8) * dt; twirl += twirlVel * dt; if (Math.abs(goal - twirl) < .003 && Math.abs(twirlVel) < .02) twirl = twirlVel = 0; }
+	spinner.rotation.y = twirl + spinAngle + dragTurn + headTurn * (1 - tazK);
+	spinner.rotation.x = headTilt * (1 - tazK);
+	shadow.position.x = group.position.x;
+	shadow.scale.setScalar(clamp(1 + pose.ty * .01, .6, 1.1) * (1 + tazK * .3));
+
+	EXUDES.drips.on = pose.melt > .4;
+	EXUDES.jointSmoke.on = PROPS.joint.on && lv.shatter < .05;
+	if (sighAt && now > sighAt) { sighAt = 0; for (let k = 0; k < 3; k++) setTimeout(() => spawn(EXUDES.sigh), k * 140); }
+	EXUDES.notes.synaes = fx.synaes; // synaesthesia streams notes too, without flipping the Music notes button
+	// Colour: sick turns him queasy green; synaesthesia pulses his hue with the beat
+	{ const L = LOOKS[look], beat = Math.max(0, Math.sin(t * Math.PI * 1.8)) ** 4;
+		L.body.color.copy(L.base).lerp(SICKLY, clamp(pose.sick, 0, 1) * (L.body.map ? .45 : .6));
+		if (fx.synaes) L.body.color.offsetHSL(beat * .25, beat * .2, 0);
+		L.shard.color.copy(L.body.color); }
+	RINGS.forEach((m, k) => { m.visible = fx.synaes; if (!fx.synaes) return; const ph = (t * .9 + k / RINGS.length) % 1; m.scale.setScalar(.8 + ph * (EMBED ? 2.2 : 3.2)); m.material.opacity = (1 - ph) * (1 - ph) * .55; m.material.color.setHSL((t * .2 + k * .2) % 1, .9, .65); });
+	// Breathing: the room swells and settles with him
+	backdrop.scale.setScalar(fx.breathing ? 1 + Math.sin(t * 1.4) * .035 : 1);
+	updateFaces(now);
+	group.updateMatrixWorld(true);
+	updateSnow(Math.min(.25, t - (lastDrawT || t)), t);
+	updateExudes(Math.min(.25, t - (lastDrawT || t))); lastDrawT = t; // real time since the last drawn frame, so a dropped frame rate holds them too
+
+	// Tornado dressing
+	dustMat.opacity = tazK * .8;
+	if (tazK > .01) dustSeed.forEach(([a0, r, y, sp], i) => dustPos.set([Math.cos(a0 + t * sp) * r * (1 + tazK * .3), y * .6 + Math.sin(t * 3 + i) * .05, Math.sin(a0 + t * sp) * r], i * 3));
+	dustGeo.attributes.position.needsUpdate = true;
+	swooshes.forEach((m, i) => { m.material.opacity = tazK * .55; m.rotation.z = -t * (14 + i * 3); m.scale.setScalar(.2 + .9 * ((m.position.y) / 1.6) + .25); });
+
+	// Trails: afterimage while the effect is on, or automatically during the spin
+	after.uniforms.damp.value = Math.max(fx.trails ? .86 : 0, tazK > .05 ? .78 : 0);
+	renderPass.enabled = !fx.glasses; anaglyphPass.enabled = fx.glasses;
+	if (EMBED && !dmt) {
+		// Embedded tracers: instead of clearing, the last frame fades (colour and alpha together, so the page still
+		// shows through), and he's drawn on top.
+		const trace = disOn && fx.trails;
+		renderer.autoClear = !trace;
+		if (trace) { renderer.render(fadeScene, fadeCam); renderer.clearDepth(); }
+		renderer.render(scene, camera);
+	} else { renderer.autoClear = true; composer.render(); }
+};
+
+// ── Controls ──
+const setLook = (k) => {
+	look = k;
+	const L = LOOKS[k];
+	body.material = L.body; lidColor = L.lid;
+	scene.environment = L.env; renderer.toneMapping = L.tone;
+	roots.visible = k === 'onion';
+	L.body.needsUpdate = true;
+	[...$('#looks').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+};
+for (const [k, L] of Object.entries(LOOKS)) { const b = document.createElement('button'); b.textContent = L.label; b.dataset.k = k; b.onclick = () => setLook(k); $('#looks').appendChild(b); }
+{ const b = document.createElement('button'); b.textContent = 'Taz spin'; b.className = 'hero'; b.onclick = startTaz; $('#acts').appendChild(b); }
+{ const b = document.createElement('button'); b.textContent = 'Deal with it'; b.className = 'hero';
+	b.onclick = () => { PROPS.shades.on = true; PROPS.shades.btn.setAttribute('aria-pressed', 'true'); dealAt = performance.now(); dealFace = dealAt + 5000; setTimeout(() => say('Deal with it.'), 1650); };
+	$('#acts').appendChild(b); }
+{ const b = document.createElement('button'); b.textContent = 'DMT journey'; b.className = 'hero'; b.onclick = startDmt; $('#acts').appendChild(b); }
+for (const a of Object.keys(ACTS)) { const b = document.createElement('button'); b.textContent = a; b.onclick = () => { playAct(a); if (a === 'evil laugh') say('Mwahaha!'); }; $('#acts').appendChild(b); }
+for (const f of Object.keys(FEELS)) {
+	const b = document.createElement('button'); b.textContent = f; b.setAttribute('aria-pressed', String(f === baseFeel));
+	b.onclick = () => { baseFeel = f; if (f === 'relieved') sighAt = performance.now() + 250; [...$('#feels').children].forEach((x) => x.setAttribute('aria-pressed', String(x === b))); };
+	$('#feels').appendChild(b);
+}
+const applyInk = () => { for (const P of Object.values(PROPS)) for (const m of P.parts) if (m.userData.lit) m.material = fx.ink && toonOf.get(m.userData.lit) || m.userData.lit; };
+for (const [k, label] of [['ink', 'Cartoon ink'], ['glasses', '3D glasses (red/cyan)'], ['trails', 'Tracers'], ['choppy', 'Frame rate drop'], ['melting', 'Melting'], ['breathing', 'Breathing'], ['synaes', 'Synaesthesia'], ['pareidolia', 'Pareidolia']]) {
+	const b = document.createElement('button'); b.textContent = label; b.setAttribute('aria-pressed', String(!!fx[k])); fxBtn[k] = b;
+	b.onclick = () => { fx[k] = !fx[k]; b.setAttribute('aria-pressed', String(fx[k])); if (k === 'ink') applyInk(); };
+	$('#fxs').appendChild(b);
+}
+for (const [k, label] of [['pat', 'Pattern'], ['shatter', 'Deconstruct'], ['hyper', 'Hyperbolic space']]) {
+	const row = document.createElement('label'); row.className = 'brow';
+	row.innerHTML = `<span>${label}</span><input type="range" min="0" max="1" step="0.01" value="0">`;
+	row.querySelector('input').oninput = (e) => (bench[k] = Number(e.target.value));
+	$('#bench').appendChild(row);
+}
+for (const [k, E] of Object.entries(EXUDES)) {
+	if (E.hidden) continue;
+	const b = document.createElement('button'); b.textContent = E.label; b.setAttribute('aria-pressed', 'false'); E.btn = b;
+	b.onclick = () => { E.on = !E.on; b.setAttribute('aria-pressed', String(E.on)); };
+	$('#exudes').appendChild(b);
+}
+for (const [k, P] of Object.entries(PROPS)) {
+	const b = document.createElement('button'); b.textContent = P.label; b.setAttribute('aria-pressed', 'false'); P.btn = b;
+	b.onclick = () => { P.on = !P.on; b.setAttribute('aria-pressed', String(P.on)); };
+	$('#props').appendChild(b);
+}
+const SEASONS = {
+	everyday: { label: 'Everyday', look: 'cartoon', hat: null, exudes: [], bg: ['#2a2059', '#1b1540'] },
+	halloween: { label: 'Halloween', look: 'pumpkin', hat: 'witch', exudes: ['bats', 'candy'], bg: ['#3d1c55', '#120a1f'], moon: true, glow: true, say: 'Boo! Happy Halloween!' },
+	stoned: { label: 'Stoned', look: 'cartoon', hat: null, props: ['joint'], exudes: ['munchies'], bg: ['#2c3a4a', '#141b26'], feel: 'stoned', say: 'Duuude.' },
+	evil: { label: 'Evil Spunion', look: 'evil', hat: null, props: ['horns'], exudes: ['smoke'], bg: ['#3d0c1d', '#0d0509'], red: true, feel: 'evil', say: 'Mwahaha!' },
+	christmas: { label: 'Christmas', look: 'ornament', hat: null, props: ['hanger'], exudes: ['sparkles'], bg: ['#1d3b5c', '#0a1424'], snow: true, say: 'Merry everything!' },
+};
+const sync = () => {
+	for (const P of Object.values(PROPS)) P.btn.setAttribute('aria-pressed', String(P.on));
+	for (const E of Object.values(EXUDES)) E.btn && E.btn.setAttribute('aria-pressed', String(E.on));
+};
+const setSeason = (k) => {
+	const S = SEASONS[k];
+	setLook(S.look);
+	for (const h of ['hat', 'witch', 'santa', 'cap', 'hanger', 'horns', 'joint']) PROPS[h].on = h === S.hat || (S.props || []).includes(h);
+	for (const [n, E] of Object.entries(EXUDES)) if (!E.hidden) E.on = S.exudes.includes(n);
+	drawBg(S.bg[0], S.bg[1]); bgTex.needsUpdate = true; moon.visible = !!S.moon;
+	glowEyes = !!S.glow; redEyes = !!S.red; snow.visible = !!S.snow;
+	baseFeel = S.feel || 'content'; [...$('#feels').children].forEach((x) => x.setAttribute('aria-pressed', String(x.textContent === baseFeel)));
+	if (S.say) say(S.say);
+	sync();
+	[...$('#seasons').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+};
+for (const [k, S] of Object.entries(SEASONS)) { const b = document.createElement('button'); b.textContent = S.label; b.dataset.k = k; b.onclick = () => setSeason(k); $('#seasons').appendChild(b); }
+for (const [k, S] of Object.entries(SETS)) { const b = document.createElement('button'); b.textContent = S.label; b.dataset.k = k; b.setAttribute('aria-pressed', 'false'); b.onclick = () => runSet(k); $('#sets').appendChild(b); }
+// Hat fit sliders: move them until the witch hat sits right; saved for the site too.
+{
+	const show = () => { $('#hatvals').textContent = JSON.stringify(hatFit); };
+	const apply = () => { PROPS.witch.update = hatOn(hatFit.lift, hatFit.x, hatFit.y, hatFit.lean, hatFit.tilt); PROPS.witch.g.scale.setScalar(hatFit.scale); try { localStorage.setItem('rd-hat-witch', JSON.stringify(hatFit)); } catch {} show(); };
+	for (const [k, label, min, max, step] of [['x', 'Across', 120, 380, 1], ['y', 'Up / down', 10, 160, 1], ['lift', 'Lift off head', 0, 1, .01], ['tilt', 'Tilt', -.8, .8, .01], ['lean', 'Lean with head', 0, .6, .01], ['scale', 'Size', .6, 1.8, .01]]) {
+		const row = document.createElement('label'); row.className = 'brow';
+		row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${hatFit[k]}">`;
+		row.querySelector('input').oninput = (e) => { hatFit[k] = Number(e.target.value); apply(); };
+		$('#hatfit').appendChild(row);
+	}
+	$('#hatreset').onclick = () => { Object.assign(hatFit, HAT_DEFAULT); [...$('#hatfit').querySelectorAll('input')].forEach((el, i) => (el.value = hatFit[['x', 'y', 'lift', 'tilt', 'lean', 'scale'][i]])); apply(); };
+	show();
+}
+applyInk();
+setLook('cartoon');
+$('#seasons').firstChild.setAttribute('aria-pressed', 'true');
+resize();
+if (EMBED) {
+	backdrop.visible = false;
+	fx.ink = false; applyInk();
+	// Closer to the 2D Spunion: a long lens from further back (little perspective), shallower depth, nearly flat
+	// shading, and a firmer, well-damped top that settles instead of flopping.
+	camK = 4.2; // the frame is 4x his box (room for rings and patterns), so the camera sits back to keep him the same size
+	group.scale.z = .55; scene.add(waterGlow);
+	toonRamp.image.data.set([236, 236, 236, 255, 248, 248, 248, 255, 255, 255, 255, 255]); toonRamp.needsUpdate = true;
+	STIFF.curl = 170; DAMP.curl = 19;
+	const TINTS = { none: '#5cdfe4', caution: '#ffd35c', danger: '#ff6b7a' };
+	const LIDS = { none: '#2aa9b6', caution: '#c99a1f', danger: '#c23a4b' };
+	addEventListener('message', (e) => {
+		if (e.origin !== location.origin || !e.data || e.data.spunion !== 1) return;
+		const m = e.data;
+		if (m.feel && FEELS[m.feel]) baseFeel = m.feel;
+		// The page passes the pointer in (the frame itself never gets it), in this frame's own coordinates.
+		// The page's radio: notes come off him, styled by the mood, and he moves with the loudness.
+		if ('radio' in m) {
+			const r = m.radio; radioOn = !!r;
+			EXUDES.notes.on = r === 'cozy' || r === 'calm' || r === 'dreamy' || r === 'upbeat' || r === 'link';
+			EXUDES.sparkles.on = r === 'dreamy';
+			EXUDES.zzz.on = r === 'sleep';
+			if (!r) beat = 0;
+		}
+		if (typeof m.beat === 'number') beat = reduced ? 0 : clamp(m.beat, 0, 1);
+		// What he's talking about, shown: his water bottle floats beside him for water; munchies for food; Zzz for sleep.
+		if ('topic' in m) {
+			// (Water is drawn by the page now, bigger and better than the 3D bottle; the bottle stays put away.)
+			PROPS.water.on = false; waterPush = false;
+			if (!PROPS.water.on) { waterShow = 0; waterGlow.material.opacity = 0; }
+			EXUDES.munchies.on = m.topic === 'food';
+			if (!radioOn) EXUDES.zzz.on = m.topic === 'sleep';
+		}
+		if (Array.isArray(m.pointer)) { px = m.pointer[0]; py = m.pointer[1]; lastMove = performance.now(); }
+		// Dissociatives (ketamine): tracers behind him and a stuttering, dropped frame rate, rising and falling with
+		// the dose (0–1). Tracers need the full effects chain, so it runs while this is on.
+		// (Dissociatives are shown by the page: a drifting double image around the frame, no frame drops.)
+		// Line-art style (effect demos): plain white with dark outlines, no seasonal look or props, so the effect is
+		// the only thing going on.
+		if (m.style === 'lineart') {
+			setSeason('everyday'); backdrop.visible = false; moon.visible = false; flatZ = .55;
+			for (const P of Object.values(PROPS)) P.on = false;
+			for (const E of Object.values(EXUDES)) E.on = false;
+			LOOKS.cartoon.base.set('#fbfaff'); lidColor = '#d9d5ea';
+			fx.ink = true; applyInk(); lineArt = true;
+			// Flat as paper: no shading bands, just the ink line around him.
+			toonRamp.image.data.set([255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]); toonRamp.needsUpdate = true;
+		}
+		// Coping: the site keeps the shades on while he's dealing with a worry, and lifts them off once it settles.
+		if (typeof m.shades === 'boolean' && !lineArt) {
+			if (m.shades && !shadesHeld) { shadesHeld = true; liftAt = 0; if (!PROPS.shades.on) { PROPS.shades.on = true; if (!m.instant) { dealAt = performance.now(); dealFace = dealAt + 5000; } } }
+			else if (!m.shades && shadesHeld) { shadesHeld = false; if (PROPS.shades.on) liftAt = performance.now(); }
+		}
+		// Stunts: his showpieces, cued by the site (or the reader) when the mood's right.
+		if (m.stunt && !lineArt) {
+			if (m.stunt === 'taz') startTaz();
+			if (m.stunt === 'dealwithit' && !shadesHeld) { PROPS.shades.on = true; liftAt = 0; dealAt = performance.now(); dealFace = dealAt + 5000; setTimeout(() => !shadesHeld && !liftAt && PROPS.shades.on && (liftAt = performance.now()), 7000); }
+			if (m.stunt === 'party') {
+				const hat = PROPS.hat; if (hat) { hat.on = true; setTimeout(() => (hat.on = false), 6000); }
+				EXUDES.sparkles.on = true; setTimeout(() => (EXUDES.sparkles.on = false), 6000);
+				playAct('dance'); setTimeout(() => playAct('boing'), 900); setTimeout(() => playAct('dance'), 1800);
+			}
+			if (m.stunt === 'melt') { playAct('melt'); }
+		}
+		// Demonstrating an effect (effect pages): held steady while the page is open.
+		if (m.demo) {
+			const d = m.demo;
+			bench.pat = reduced ? Math.min(.3, (d.pat || 0) * .8) : (d.pat || 0) * .8;
+			fx.breathing = !!d.breathing; fx.melting = !!d.melting && !reduced; fx.synaes = !!d.synaes && !reduced;
+			// Body signs for effects like anxiety and panic: sweat beading off his brow, quick shallow breaths.
+			breathRate = d.breathFast && !reduced ? 4.2 : 1.4;
+			EXUDES.sweat.on = !!d.sweat;
+			if (d.sweat) EXUDES.sweat.rate = d.sweat >= 2 ? 4.5 : 2.2;
+			jitter = reduced ? 0 : d.jitter || 0;
+			if (d.feel && FEELS[d.feel]) baseFeel = d.feel;
+		}
+		if (typeof m.jitter === 'number') jitter = reduced ? 0 : clamp(m.jitter, 0, 1);
+		// Psychedelics (LSD, mushrooms, mescaline): flowing patterns spread over his skin, he breathes, his edges melt
+		// a little, and colour rings pulse off him; all rising and falling with the dose (0–1).
+		if (typeof m.psy === 'number') {
+			const v = reduced ? Math.min(.35, m.psy) : clamp(m.psy, 0, 1);
+			bench.pat = v * .7;
+			fx.breathing = v > .2;
+			fx.melting = v > .55 && !reduced;
+			fx.synaes = v > .45 && !reduced;
+		}
+		if (m.act && ACTS[m.act]) playAct(m.act);
+		// His colour eases to the new one over about a second (the frame loop paints from L.base each frame).
+		if (m.tint && TINTS[m.tint] && !lineArt) {
+			const L = LOOKS.cartoon, to = new THREE.Color(TINTS[m.tint]);
+			clearInterval(window.__tint); lidColor = LIDS[m.tint];
+			if (!L.base) L.base = L.body.color.clone();
+			window.__tint = setInterval(() => { L.base.lerp(to, .12); if (L.base.equals(to) || Math.abs(L.base.r - to.r) + Math.abs(L.base.g - to.g) + Math.abs(L.base.b - to.b) < .004) { L.base.copy(to); clearInterval(window.__tint); } }, 33);
+		}
+		// A seasonal look (Halloween's pumpkin and witch hat, Christmas…), without its backdrop, moon or caption.
+		// (On the site the witch hat stays off: pumpkin, bats and candy are Halloween enough.)
+		if (m.season && SEASONS[m.season]) { setSeason(m.season); backdrop.visible = false; moon.visible = false; flatZ = m.season === 'everyday' ? .55 : 1; PROPS.witch.on = false; }
+		// The DMT journey takes the whole screen (the page makes the frame full-size), then he comes back.
+		if (m.journey === 'dmt' && !dmt) {
+			backdrop.visible = true; startDmt();
+			const was = { trails: fx.trails, breathing: fx.breathing, synaes: fx.synaes };
+			Object.assign(fx, { trails: true, breathing: true, synaes: !reduced });
+			const len = DMT_KEYS[DMT_KEYS.length - 1][0];
+			setTimeout(() => { Object.assign(fx, was); backdrop.visible = false; parent.postMessage({ spunion3d: 'journey-done' }, location.origin); }, len + 200);
+		}
+	});
+	parent.postMessage({ spunion3d: 'ready' }, location.origin);
+} else say('Hi! I’m Spunion. In three dimensions now.');
+requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+		<title>re:dose</title>
+		<meta name="description" content="Harm reduction from real experiences: what substances do, how they go, what's risky to mix, and where to get help. No cookies, no tracking." />
+		<meta name="theme-color" content="#3a2e74" />
+		<!-- Tells Tor Browser (and Brave) that re:dose has an onion address, so they can offer to switch to it. -->
+		<meta http-equiv="onion-location" content="http://redosexoqaokeydrguw3sjrrbh7hohlwx3dbg2et5uovaxav63sgpiyd.onion/" />
+		<meta property="og:title" content="re:dose" />
+		<meta property="og:description" content="Harm reduction from real experiences: what substances do, how they go, what's risky to mix, and where to get help." />
+		<meta property="og:url" content="https://redose.org/" />
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="https://redose.org/og.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="re:dose. Harm reduction, from real experiences. With Spunion, its mascot." />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="re:dose" />
+		<meta name="twitter:description" content="Harm reduction from real experiences: what substances do, how they go, what's risky to mix, and where to get help." />
+		<meta name="twitter:image" content="https://redose.org/og.png" />
+		<!-- Served locally: the COEP header MotherDuck needs blocks cross-origin scripts without CORP headers. -->
+		<script src="/tailwind.js"></script>
+	  <link rel="icon" type="image/png" href="/favicon.png" />
+    <script type="module" crossorigin src="/assets/index-BlXpI8uQ.js"></script>
+  </head>
+	<body style="background:#4a3d8c">
+		<!-- Before anything loads, match the background to the saved dark/light choice (or the device's), so there's no purple flash in dark mode. -->
+		<script>try{var t=localStorage.getItem('rd-theme');if(t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches)document.body.style.background='#0c0b11'}catch(e){}</script>
+		<div id="root"></div>
+	</body>
+</html>
